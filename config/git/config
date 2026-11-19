@@ -5,8 +5,6 @@
 	email = juc3dj@gmail.cm
 [http]
 	postBuffer = 524288000
-[credential]
-	helper = manager-core
 [credential "https://github.com"]
 	helper = 
 	helper = !$HOME/.nix-profile/bin/gh auth git-credential
