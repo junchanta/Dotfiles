@@ -82,6 +82,15 @@ return {
             { "<leader>X", toggle_check("toggle_box"), desc = "Toggle Checkbox", ft = "markdown" },
         },
         config = function ()
+            -- markdown-togglecheck は、0.12 対応版の nvim-treesitter から消えた ts_utils に依存している。
+            -- 使っている関数は get_node_at_cursor だけなので、Neovim 本体の同等の関数で代わりを用意する
+            package.preload["nvim-treesitter.ts_utils"] = function()
+                return {
+                    get_node_at_cursor = function(_, ignore_injected_langs)
+                        return vim.treesitter.get_node({ ignore_injections = ignore_injected_langs })
+                    end,
+                }
+            end
             require('markdown-togglecheck').setup({
                 -- create empty checkbox on item without any while toggling
                 create = true,

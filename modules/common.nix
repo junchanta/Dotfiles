@@ -38,6 +38,7 @@ in
     luarocks
     lua-language-server
     shfmt
+    tree-sitter # nvim-treesitter がパーサーを入れるときに使う
   ];
 
   programs.fish = {
