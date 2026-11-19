@@ -256,6 +256,9 @@ echo ~/.nix-profile/bin/fish | sudo tee -a /etc/shells
 chsh -s ~/.nix-profile/bin/fish
 ```
 
+切り替えたら、一度ログアウトして入り直す。
+常駐しているアプリ(skhd、herdr など)は起動したときのログインシェルを使い続けるので、入り直さないと古いシェルでコマンドを実行しようとして失敗する。
+
 6. 必要なら、マシンごとの設定を `~/.config/fish/conf.d/90-local.fish` に書く
 7. Cursor の拡張機能を入れる
 
