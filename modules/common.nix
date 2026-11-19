@@ -74,6 +74,12 @@ in
   home.file."${cursorUserDir}/keybindings.json".source = config.lib.dotfiles.link "cursor/keybindings.json";
   home.file."${cursorUserDir}/settings.json".source = config.lib.dotfiles.link "cursor/settings.json";
 
+  # Claude Code。skill は共有するものだけを 1 つずつリンクし、ほかの skill はマシンごとに残す
+  home.file.".claude/CLAUDE.md".source = config.lib.dotfiles.link "claude/CLAUDE.md";
+  home.file.".claude/skills/nvim-key".source = config.lib.dotfiles.link "claude/skills/nvim-key";
+  home.file.".claude/skills/catch-up".source = config.lib.dotfiles.link "claude/skills/catch-up";
+  home.file.".claude/skills/dotfiles".source = config.lib.dotfiles.link "claude/skills/dotfiles";
+
   # home-manager コマンド自体も home-manager で入れる
   programs.home-manager.enable = true;
 

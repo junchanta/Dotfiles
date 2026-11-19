@@ -48,12 +48,14 @@ Omarchy に対応させるときは、次の点を直す必要がある。
 - 全マシン共通(`modules/common.nix`)
     - CLI ツール：eza、bat、tree、wget、ripgrep、fzf、jq、direnv、git、gh、lazygit、neovim、tmux、fish、luarocks、lua-language-server、shfmt
     - 設定：fish、nvim、tmux、git、ghostty、Cursor、herdr
+    - Claude Code：グローバルの `CLAUDE.md` と、自作の skill(nvim-key、catch-up、dotfiles)
 - macOS だけ(`modules/darwin.nix`)
     - 設定：yabai、skhd、sketchybar、fish と ghostty の macOS 用の部分
 - マシンごと(リポジトリの管理外。各マシンで直接書く)
     - `~/.config/fish/conf.d/90-local.fish`：言語別の道具(anyenv、Go、Rust など)の PATH
     - `~/.config/fish/functions/`：そのマシンでだけ使う fish の関数
     - `~/.config/herdr/config-gpui.local.toml`、`~/.config/herdr/hws.json`：herdr の画面設定とワークスペース定義
+    - `~/.claude/skills/` のほかの skill：会社のリポジトリ由来のものや、アプリ(herdr、Orca)が入れたもの
 
 GUI アプリと、言語の実行環境(node、python など)は Nix で管理していない。
 各マシンで個別に入れる。
