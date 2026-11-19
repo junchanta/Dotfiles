@@ -201,8 +201,8 @@ return {
 
             -- mason で入れたサーバーは mason-lspconfig が自動で有効化する（automatic_enable）
             require("mason-lspconfig").setup()
-
-            vim.cmd("LspStart") -- 初回起動時は FileType が発火済みで自動起動しないため
+            -- 起動時に開いたファイルにも LSP が付く。Neovim 0.12 の vim.lsp.enable が、
+            -- FileType が発火済みのバッファに対して自分で起動し直すため
         end,
     },
     {
