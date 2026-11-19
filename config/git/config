@@ -1,0 +1,15 @@
+# This is Git's per-user configuration file.
+[user]
+# Please adapt and uncomment the following lines:
+	name = junchanta
+	email = juc3dj@gmail.cm
+[http]
+	postBuffer = 524288000
+[credential]
+	helper = manager-core
+[credential "https://github.com"]
+	helper = 
+	helper = !$HOME/.nix-profile/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper = 
+	helper = !$HOME/.nix-profile/bin/gh auth git-credential

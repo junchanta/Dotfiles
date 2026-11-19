@@ -1,0 +1,250 @@
+[
+    // Insert mode mappings
+    {
+        "key": "ctrl+p",
+        "command": "cursorUp",
+        "when": "textInputFocus && vim.mode == 'Insert'"
+    },
+    {
+        "key": "ctrl+n",
+        "command": "cursorDown",
+        "when": "textInputFocus && vim.mode == 'Insert'"
+    },
+    {
+        "key": "ctrl+b",
+        "command": "cursorLeft",
+        "when": "textInputFocus && vim.mode == 'Insert'"
+    },
+    {
+        "key": "ctrl+f",
+        "command": "cursorRight",
+        "when": "textInputFocus && vim.mode == 'Insert'"
+    },
+    // --------- Editor -------------
+    // Split
+    {
+        "key": "s v",
+        "command": "workbench.action.splitEditorRight",
+        "when": "editorTextFocus && neovim.mode == 'normal'"
+    },
+    {
+        "key": "cmd+k cmd+\\",
+        "command": "-workbench.action.splitEditorRight"
+    },
+    {
+        "key": "ctrl+w v",
+        "command": "-workbench.action.splitEditorRight",
+        "when": "!editorTextFocus && !terminalFocus && neovim.mode != 'cmdline'"
+    },
+    {
+        "key": "s s",
+        "command": "workbench.action.splitEditorDown",
+        "when": "editorTextFocus && neovim.mode == 'normal'"
+    },
+    {
+        "key": "cmd+k cmd+\\",
+        "command": "-workbench.action.splitEditorDown"
+    },
+    {
+        "key": "ctrl+w s",
+        "command": "-workbench.action.splitEditorDown",
+        "when": "!editorTextFocus && !terminalFocus && neovim.mode != 'cmdline'"
+    },
+    // Move between windows
+    {
+        "key": "space",
+        "command": "workbench.action.focusNextGroup",
+        "when": "editorTextFocus && neovim.mode == 'normal'"
+    },
+    {
+        "key": "s l",
+        "command": "workbench.action.focusRightGroup",
+        "when": "editorTextFocus && neovim.mode == 'normal'"
+    },
+    {
+        "key": "s k",
+        "command": "workbench.action.focusAboveGroup",
+        "when": "editorTextFocus && neovim.mode == 'normal'"
+    },
+    {
+        "key": "s j",
+        "command": "workbench.action.focusBelowGroup",
+        "when": "editorTextFocus && neovim.mode == 'normal'"
+    },
+    {
+        "key": "s h",
+        "command": "workbench.action.focusLeftGroup",
+        "when": "editorTextFocus && neovim.mode == 'normal'"
+    },
+    {
+        "key": "shift+tab",
+        "command": "workbench.action.previousEditor",
+        "when": "editorTextFocus && neovim.mode == 'normal'"
+    },
+    {
+        "key": "tab",
+        "command": "workbench.action.nextEditor",
+        "when": "editorTextFocus && neovim.mode == 'normal'"
+    },
+    // Resize window
+    {
+        "key": "ctrl+w h",
+        "command": "workbench.action.decreaseViewWidth",
+        "when": "editorTextFocus && neovim.mode == 'normal'"
+    },
+    {
+        "key": "ctrl+w l",
+        "command": "workbench.action.increaseViewWidth",
+        "when": "editorTextFocus && neovim.mode == 'normal'"
+    },
+    {
+        "key": "ctrl+w k",
+        "command": "workbench.action.decreaseViewHeight",
+        "when": "editorTextFocus && neovim.mode == 'normal'"
+    },
+    {
+        "key": "ctrl+w j",
+        "command": "workbench.action.increaseViewHeight",
+        "when": "editorTextFocus && neovim.mode == 'normal'"
+    },
+    // --------- Explorer -------------
+    // Switch between editor
+    {
+        "key": "s f",
+        "command": "workbench.files.action.focusFilesExplorer",
+        "when": "editorTextFocus && neovim.mode == 'normal'"
+    },
+    // TODO 
+    // {
+    //     "key": "q",
+    //     "command": "workbench.files.action.focusOpenEditorsView",
+    //     "when": "workbench.explorer.openEditorsView.active"
+    // },
+    {
+        "key": "cmd+k e",
+        "command": "-workbench.files.action.focusOpenEditorsView",
+        "when": "workbench.explorer.openEditorsView.active"
+    },
+    // Toggle Explorer
+    {
+        "key": "s p",
+        "command": "workbench.action.toggleSidebarVisibility",
+        "when": "editorTextFocus && neovim.mode == 'normal'"
+    },
+    {
+        "key": "cmd+b",
+        "command": "-workbench.action.toggleSidebarVisibility"
+    },
+    // On Explorer
+    // Collapse
+    {
+        "key": "h",
+        "command": "list.collapse",
+        "when": "listFocus && !inputFocus"
+    },
+    // CRUD
+    {
+        "key": "shift+n",
+        "command": "explorer.newFile",
+        "when": "explorerViewletVisible && filesExplorerFocus && !explorerResourceReadonly && !inputFocus"
+    },
+    {
+        "key": "shift+k",
+        "command": "explorer.newFolder",
+        "when": "explorerViewletVisible && filesExplorerFocus && !explorerResourceReadonly && !inputFocus"
+    },
+    {
+        "key": "shift+d",
+        "command": "deleteFile",
+        "when": "explorerViewletVisible && filesExplorerFocus && !explorerResourceReadonly && !inputFocus"
+    },
+    {
+        "key": "shift+e",
+        "command": "deleteFolder",
+        "when": "explorerViewletVisible && filesExplorerFocus && !explorerResourceReadonly && !inputFocus"
+    },
+    {
+        "key": "r",
+        "command": "renameFile",
+        "when": "explorerViewletVisible && filesExplorerFocus && !explorerResourceIsRoot && !explorerResourceReadonly && !inputFocus"
+    },
+    {
+        "key": "y",
+        "command": "filesExplorer.copy",
+        "when": "explorerViewletVisible && filesExplorerFocus && !explorerResourceIsRoot && !explorerResourceReadonly && !inputFocus"
+    },
+    {
+        "key": "x",
+        "command": "filesExplorer.cut",
+        "when": "explorerViewletVisible && filesExplorerFocus && !explorerResourceIsRoot && !explorerResourceReadonly && !inputFocus"
+    },
+    {
+        "key": "p",
+        "command": "filesExplorer.paste",
+        "when": "explorerViewletVisible && filesExplorerFocus && !explorerResourceIsRoot && !explorerResourceReadonly && !inputFocus"
+    },
+    // ------------- Search -------------
+    // use FindItFaster Plugin like Telescope
+    {
+        "key": "; f",
+        "command": "find-it-faster.findFiles",
+        "when": "editorTextFocus && neovim.mode == 'normal'"
+    },
+    {
+        "key": "shift+cmd+j",
+        "command": "-find-it-faster.findFiles"
+    },
+    {
+        "key": "; r",
+        "command": "find-it-faster.findWithinFiles",
+        "when": "editorTextFocus && neovim.mode == 'normal'"
+    },
+    {
+        "key": "shift+cmd+u",
+        "command": "-find-it-faster.findWithinFiles"
+    },
+    // ------------- terminal -------------
+    // toggle full screen
+    {
+        "key": "ctrl+f l",
+        "command": "workbench.action.toggleMaximizedPanel",
+        "when": "editorTextFocus && neovim.mode == 'normal'"
+    },
+    {
+        "key": "cmd+i",
+        "command": "composerMode.agent"
+    },
+    {
+        "key": "cmd+r cmd+\\",
+        "command": "-workbench.action.splitEditorDown"
+    },
+    // ------------- FindItFaster Terminal Controls -------------
+    {
+        "key": "ctrl+p",
+        "command": "workbench.action.terminal.sendSequence",
+        "args": { "text": "\u001b[A" },
+        "when": "terminalFocus && findItFasterActive"
+    },
+    {
+        "key": "ctrl+n",
+        "command": "workbench.action.terminal.sendSequence",
+        "args": { "text": "\u001b[B" },
+        "when": "terminalFocus && findItFasterActive"
+    },
+    {
+        "key": "ctrl+d",
+        "command": "workbench.action.terminal.sendSequence",
+        "args": { "text": "\u001b[6~" },
+        "when": "terminalFocus && findItFasterActive"
+    },
+    {
+        "key": "ctrl+u",
+        "command": "workbench.action.terminal.sendSequence",
+        "args": { "text": "\u001b[5~" },
+        "when": "terminalFocus && findItFasterActive"
+    },
+    {
+        "key": "ctrl+t p",
+        "command": "workbench.action.switchWindow"
+    }
+] 

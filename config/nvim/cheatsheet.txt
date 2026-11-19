@@ -1,0 +1,194 @@
+## 基本操作 @basic
+
+ファイル保存 | :w
+ファイルを閉じる | :q
+保存して閉じる | :wq
+強制終了 | :q!
+
+## 移動・ジャンプ (flash.nvim) @navigation
+
+画面内ジャンプ | m + 文字
+構文単位で選択 | M
+リモート操作（operator待ち） | r
+Treesitter検索 | R
+文字ジャンプ（複数行） | f / F / t / T
+検索モードでflashトグル | <C-s>
+
+## 検索 (hlslens) @search
+
+次の検索結果 | n
+前の検索結果 | N
+N番目の次へジャンプ | 5n (例)
+カーソル下の単語を検索 | *
+カーソル下の単語を逆検索 | #
+部分一致検索 | g* / g#
+検索ハイライト消去 | <Space>x
+
+## Telescope @telescope
+
+ファイル検索 | ;f
+grep検索 | ;r
+バッファ一覧 | ;cb
+最近開いたファイル | ;of
+バッファ内検索 | ;s
+診断（現在バッファ） | ;d
+診断（ワークスペース） | ;D
+ヘルプ検索 | ;h
+キーマップ検索 | ;k
+Gitコミット | ;gc
+Git状態 | ;gs
+
+## ファイラー (fern) @filer
+
+ファイラーを開く | sf
+
+## LSP @lsp
+
+定義へジャンプ | gd
+定義をプレビュー | gD
+参照一覧 | gr
+実装へジャンプ | gi
+ホバー（ドキュメント） | K
+リネーム | <Space>rn
+コードアクション | <Space>ca
+次の診断 | ]d
+前の診断 | [d
+診断をフロート表示 | <Space>e
+アウトライン（LSP） | <Space>o
+
+## アウトライン (aerial) @outline
+
+アウトライン表示 | <Space>co
+前のシンボル | {
+次のシンボル | }
+
+## Trouble (診断一覧) @trouble
+
+診断一覧 | [pd
+バッファ診断 | [pD
+シンボル一覧 | <Space>cs
+LSP定義/参照 | <Space>cl
+ロケーションリスト | [pw
+Quickfixリスト | [pq
+
+## Git (gitsigns) @git
+
+次のhunk | ]h
+前のhunk | [h
+hunkをステージ | <Space>ghs
+hunkをリセット | <Space>ghr
+バッファをステージ | <Space>ghS
+ステージを取消 | <Space>ghu
+バッファをリセット | <Space>ghR
+hunkをプレビュー | <Space>ghp
+blame表示 | <Space>ghb
+差分表示 | <Space>ghd
+差分表示 (~) | <Space>ghD
+hunkを選択 | ih (visual/operator)
+
+## Git (neogit) @git @neogit
+
+statusを開く | <Space>gg
+commitを開く | <Space>gc
+ヘルプ（全キー一覧） | ? (status内)
+差分の展開・折りたたみ | a (status内)
+全てを畳む / 全てを展開 | za / zO (status内)
+セクションの hunk を一括で畳む | <Space>z (status内)
+展開の深さを変える | 1 / 2 / 3 / 4 (status内)
+ステージ / 取消 | s / u (status内)
+全部ステージ / 全部取消 | <C-s> / U (status内)
+変更を破棄 | x (status内)
+該当行へジャンプ | <CR> (status内)
+横分割 / 縦分割 / 新タブで開く | <C-x> / <C-v> / T (status内)
+前後のhunkヘッダへ | { / } (status内)
+コミットの中身を見る | <CR> (Recent Commits内)
+コミットをブラウザで開く | o (commit view内)
+作業ツリーのファイルを開く | a (commit view内)
+ログ一覧 | l (status内)
+ブランチ操作 | b (status内)
+push / pull / fetch | P / p / f (status内)
+rebase / merge / revert | r / m / v (status内)
+stash | Z (status内)
+閉じる | q
+
+## Git (diffview) @git @diffview
+
+作業ツリーの差分 | <Space>gd
+ブランチ全体の差分 | <Space>gD
+このファイルの履歴 | <Space>gf
+リポジトリの履歴 | <Space>gF
+特定コミットの差分 | :DiffviewOpen <sha>^!
+ヘルプ（全キー一覧） | g? (diffview内)
+ファイルパネルの開閉 | <Space>b (diffview内)
+次/前のファイル | <Tab> / <S-Tab> (diffview内)
+元のタブでファイルを開く | gf (diffview内)
+閉じる | q
+
+## Git (lazygit / telescope) @git @lazygit
+
+lazygit | <C-r>g
+Gitコミット検索 | ;gc
+Git状態 | ;gs
+
+## コメント (mini.comment) @comment
+
+コメントトグル | gc
+行コメントトグル | gcc
+
+## Surround (mini.surround) @surround
+
+囲みを追加 | gza
+囲みを削除 | gzd
+囲みを検索（右） | gzf
+囲みを検索（左） | gzh
+囲みをハイライト | gzH
+囲みを置換 | gzr
+
+## Yank/Paste (yanky) @yank
+
+ペースト（後） | p
+ペースト（前） | P
+次のyank履歴 | <C-n> (ペースト後)
+前のyank履歴 | <C-p> (ペースト後)
+yank履歴検索 | <Space>yh
+
+## ターミナル (toggleterm) @terminal
+
+ターミナル表示 | <C-r>i
+ターミナル 1-4 | <C-r>1 / <C-r>2 / <C-r>3 / <C-r>4
+水平ターミナル | <C-r>s
+lazygit | <C-r>g
+
+## メモ (memolist) @memo
+
+新規メモ | <C-m>n
+メモ一覧 | <C-m>l
+メモをgrep | <C-m>g
+
+## Markdown @markdown
+
+プレビュー | mdp
+チェックマークトグル | [mtc
+チェックボックストグル | [mtC
+
+## ウィンドウ @window
+
+水平分割 | ss
+垂直分割 | sv
+ウィンドウ移動 | <C-h> / <C-j> / <C-k> / <C-l>
+ウィンドウを閉じる | <C-w>q
+
+## AI レビューコメント (nudge.nvim) @ai @nudge
+
+行・範囲にコメント | <Space>aa (visual可)
+コメントを編集 | <Space>ae
+コメントを削除 | <Space>ad
+コメント一覧（quickfix） | <Space>al
+Claude Code に送る | <Space>as
+送信先ペインを選び直す | <Space>at
+全コメントを削除 | :Nudge clear
+
+## その他 @misc
+
+チートシート | <Space>?
+Mason (LSP管理) | <Space>cm

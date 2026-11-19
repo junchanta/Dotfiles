@@ -1,0 +1,56 @@
+# 全マシン共通の ghostty 設定
+# テーマやフォントなど OS ごとに違うものは、末尾で読み込む local.conf に書く
+
+window-padding-x = 0
+window-padding-y = 0
+window-padding-balance = true
+
+# TERM
+term = xterm-256color
+
+# ===== tmux-like keybindings (prefix: Ctrl+g) =====
+
+# Split (vim-like: s=horizontal, v=vertical)
+keybind = ctrl+g>v=new_split:right
+keybind = ctrl+g>s=new_split:down
+
+# Pane navigation - vim-like (tmux: prefix+h/j/k/l)
+keybind = ctrl+g>h=goto_split:left
+keybind = ctrl+g>j=goto_split:bottom
+keybind = ctrl+g>k=goto_split:top
+keybind = ctrl+g>l=goto_split:right
+
+# Pane resize (tmux: prefix+Ctrl+h/j/k/l)
+keybind = ctrl+g>ctrl+h=resize_split:left,50
+keybind = ctrl+g>ctrl+j=resize_split:down,50
+keybind = ctrl+g>ctrl+k=resize_split:up,50
+keybind = ctrl+g>ctrl+l=resize_split:right,50
+
+# Close pane (tmux: prefix+x)
+keybind = ctrl+g>x=close_surface
+
+# Zoom pane (tmux: prefix+z)
+keybind = ctrl+g>z=toggle_split_zoom
+
+# Tab/Window (tmux: prefix+c / prefix+n / prefix+p)
+keybind = ctrl+g>c=new_tab
+keybind = ctrl+g>n=next_tab
+keybind = ctrl+g>p=previous_tab
+
+# Tab移動 (ctrl+g prefix に変更、tmuxのC-S-Left/Rightとの競合を回避)
+keybind = ctrl+g>left=previous_tab
+keybind = ctrl+g>right=next_tab
+
+# デフォルトの Ctrl+Shift+Left/Right を無効化 (tmux競合回避)
+keybind = ctrl+shift+left=unbind
+keybind = ctrl+shift+right=unbind
+
+# ===== ghostty-pane-splitter =====
+keybind = ctrl+g>d=new_split:right
+keybind = ctrl+g>shift+d=new_split:down
+keybind = ctrl+g>right_bracket=goto_split:next
+keybind = ctrl+g>left_bracket=goto_split:previous
+keybind = ctrl+g>equal=equalize_splits
+
+# OS 別の設定。各マシンで ~/.config/ghostty/local.conf として配られる(なければ無視される)
+config-file = ?local.conf

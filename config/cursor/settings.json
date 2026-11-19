@@ -1,0 +1,34 @@
+{
+    "vscode-neovim.neovimInitVimPaths.darwin": "$HOME/.config/nvim/init.lua",
+    "vscode-neovim.neovimInitVimPaths.linux": "$HOME/.config/nvim/init.lua",
+    "extensions.experimental.affinity": {
+        "asvetliakov.vscode-neovim": 1
+    },
+    "explorer.confirmDelete": false,
+    "find-it-faster.general.useTerminalInEditor": false,
+    "editor.minimap.enabled": false,
+    "indentRainbow.indicatorStyle": "light",
+    "editor.lineNumbers": "relative",
+    "workbench.iconTheme": "vscode-great-icons",
+    "workbench.sideBar.location": "right",
+    "cursor.cpp.disabledLanguages": [],
+    "cursor.general.disableHttp2": true,
+    "typescript.updateImportsOnFileMove.enabled": "always",
+    "plantuml.render": "Local",
+    "javascript.updateImportsOnFileMove.enabled": "always",
+    "[dockercompose]": {
+        "editor.insertSpaces": true,
+        "editor.tabSize": 2,
+        "editor.autoIndent": "advanced",
+        "editor.defaultFormatter": "redhat.vscode-yaml"
+    },
+    "[github-actions-workflow]": {
+        "editor.defaultFormatter": "redhat.vscode-yaml"
+    },
+    "editor.accessibilitySupport": "off",
+    "workbench.colorTheme": "Catppuccin Frappé",
+    "workbench.editor.enablePreview": true,
+    "workbench.editor.enablePreviewFromCodeNavigation": true,
+    "window.autoDetectColorScheme": false,
+    "explorer.confirmDragAndDrop": false
+}

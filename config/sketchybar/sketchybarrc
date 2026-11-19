@@ -1,0 +1,122 @@
+# Omarchy-style minimal sketchybar configuration
+# Dark, modern, and elegant design inspired by Omarchy Linux
+
+PLUGIN_DIR="$CONFIG_DIR/plugins"
+
+##### Bar Appearance - Omarchy Style #####
+# Dark background with subtle transparency
+sketchybar --bar position=top \
+                 height=34 \
+                 blur_radius=30 \
+                 color=0xe61a1a1a \
+                 padding_left=10 \
+                 padding_right=10 \
+                 sticky=on \
+                 topmost=off
+
+##### Changing Defaults #####
+# JetBrains Mono for modern monospace look
+# Minimal padding and spacing
+
+default=(
+  padding_left=4
+  padding_right=4
+  icon.font="JetBrainsMono Nerd Font:Bold:15.0"
+  label.font="JetBrainsMono Nerd Font:Medium:13.0"
+  icon.color=0xffffffff
+  label.color=0xd0ffffff
+  icon.padding_left=6
+  icon.padding_right=6
+  label.padding_left=4
+  label.padding_right=4
+)
+sketchybar --default "${default[@]}"
+
+##### Adding Mission Control Space Indicators #####
+# Minimal dot-style indicators with accent color
+
+SPACE_ICONS=("1" "2" "3" "4" "5" "6" "7" "8" "9" "10")
+for i in "${!SPACE_ICONS[@]}"
+do
+  sid="$(($i+1))"
+  space=(
+    space="$sid"
+    icon="${SPACE_ICONS[i]}"
+    icon.font="JetBrainsMono Nerd Font:Bold:13.0"
+    icon.padding_left=10
+    icon.padding_right=10
+    background.color=0x30ffffff
+    background.corner_radius=6
+    background.height=24
+    label.drawing=off
+    script="$PLUGIN_DIR/space.sh"
+    click_script="yabai -m space --focus $sid"
+  )
+  sketchybar --add space space."$sid" left --set space."$sid" "${space[@]}"
+done
+
+##### Adding Left Items #####
+# Chevron indicator with minimal style
+sketchybar --add item chevron left \
+           --set chevron \
+                 icon="" \
+                 icon.color=0xff5c9fff \
+                 label.drawing=off \
+           --add item front_app left \
+           --set front_app \
+                 icon.drawing=off \
+                 label.color=0xffffffff \
+                 label.font="JetBrainsMono Nerd Font:Bold:14.0" \
+                 script="$PLUGIN_DIR/front_app.sh" \
+                 --subscribe front_app front_app_switched
+
+##### Adding Center Items #####
+# Clock in center - Linux style
+sketchybar --add item clock center \
+           --set clock \
+                 update_freq=10 \
+                 icon.drawing=off \
+                 label.color=0xffffffff \
+                 label.font="JetBrainsMono Nerd Font:Bold:13.0" \
+                 script="$PLUGIN_DIR/clock.sh"
+
+##### Adding Right Items #####
+# Minimal system indicators with accent colors
+
+sketchybar --add item volume right \
+           --set volume \
+                 icon.color=0xff5c9fff \
+                 label.color=0xd0ffffff \
+                 script="$PLUGIN_DIR/volume.sh" \
+                 --subscribe volume volume_change \
+           --add item battery right \
+           --set battery \
+                 update_freq=120 \
+                 icon.color=0xff5c9fff \
+                 label.color=0xd0ffffff \
+                 script="$PLUGIN_DIR/battery.sh" \
+                 --subscribe battery system_woke power_source_change \
+           --add item memory right \
+           --set memory \
+                 update_freq=5 \
+                 icon="󰍛" \
+                 icon.color=0xff5c9fff \
+                 label.color=0xd0ffffff \
+                 script="$PLUGIN_DIR/memory.sh" \
+           --add item cpu right \
+           --set cpu \
+                 update_freq=5 \
+                 icon="󰻠" \
+                 icon.color=0xff5c9fff \
+                 label.color=0xd0ffffff \
+                 script="$PLUGIN_DIR/cpu.sh" \
+           --add item network right \
+           --set network \
+                 update_freq=2 \
+                 icon.drawing=off \
+                 label.color=0xd0ffffff \
+                 label.font="JetBrainsMono Nerd Font:Medium:11.0" \
+                 script="$PLUGIN_DIR/network.sh"
+
+##### Force all scripts to run the first time #####
+sketchybar --update

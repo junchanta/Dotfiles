@@ -1,0 +1,77 @@
+onboarding = false
+# herdr 設定 — ~/.tmux.conf の操作感に合わせたもの
+# リロード: herdr server reload-config (または prefix+shift+r)
+
+[keys]
+# tmux と同じ prefix (Ctrl+t)
+prefix = "ctrl+t"
+
+# ペイン移動 (tmux: prefix h/j/k/l と同じ。herdr 既定値のまま明示)
+focus_pane_left = "prefix+h"
+focus_pane_down = "prefix+j"
+focus_pane_up = "prefix+k"
+focus_pane_right = "prefix+l"
+
+# 分割
+split_vertical = "prefix+v"       # 左右分割
+split_horizontal = "prefix+minus" # 上下分割
+
+# ペイン操作
+close_pane = "prefix+x"
+zoom = "prefix+z"        # tmux の zoom 相当
+resize_mode = "prefix+r" # r のあと h/j/k/l でリサイズ (tmux: prefix C-h/j/k/l 相当)
+
+# workspace = リポジトリ/並行ロット。最頻操作なので tmux の window キーをそのまま割り当て
+new_workspace = "prefix+c"
+rename_workspace = "prefix+comma"    # tmux の prefix ,
+switch_workspace = "prefix+1..9"     # サイドバー上から N 番目へ
+close_workspace = "prefix+ampersand" # tmux の kill-window (prefix &)
+workspace_picker = "prefix+w"
+previous_workspace = "prefix+p"
+next_workspace = "prefix+n"
+
+# tab (workspace 内。nvim 用 / agent 用など) — prefix + 空いている無修飾キー
+new_tab = "prefix+t"          # t = tab
+rename_tab = "prefix+period"  # workspace の rename (prefix+,) の隣
+previous_tab = "prefix+o"
+next_tab = "prefix+m"
+# 既定の prefix+o (通知元へジャンプ) を u に移して o をタブ移動に明け渡す
+open_notification_target = "prefix+u"
+switch_tab = ""               # 番号ジャンプは workspace (prefix+1..9) 専用に譲る
+close_tab = ""                # タブ内の最後のペインを prefix+x で閉じればタブも閉じる
+
+# 直前にいたペインへトグル (nvim⇔エージェントの往復。tab/workspace を跨いでも戻れる)
+last_pane = "prefix+tab"
+cycle_pane_next = ""  # 既定の prefix+tab を last_pane に譲る (ペイン移動は h/j/k/l で十分)
+
+# スクロールバックを $EDITOR (nvim) で開く = vi copy-mode 相当
+edit_scrollback = "prefix+e"
+
+# 設定リロード (prefix+r はリサイズに使うため shift+r)
+reload_config = "prefix+shift+r"
+
+# git worktree で並行作業用 workspace を作る (Claude Code の並列実行に便利)
+new_worktree = "prefix+shift+g"
+
+# カレントディレクトリを Finder で開く (tmux: bind o 相当)
+[[keys.command]]
+key = "prefix+shift+o"
+type = "shell"
+command = "open ."
+
+[ui]
+# タブ作成時に名前入力を求めない (tmux と同じ即時作成)
+prompt_new_tab_name = false
+
+[ui.toast]
+# バックグラウンド workspace のエージェント (claude/codex) が完了・入力待ちに
+# なったら herdr 内トースト表示。"system" にすると macOS 通知になる
+delivery = "herdr"
+
+[experimental]
+# 日本語 IME 対策 (macOS):
+# prefix モード中は自動で英数レイアウトに切り替える
+switch_ascii_input_source_in_prefix = true
+# Claude Code / codex 上で IME 変換候補ウィンドウがカーソル位置に追従するようにする
+reveal_hidden_cursor_for_cjk_ime = true
+cjk_ime_agents = ["claude", "codex"]
