@@ -319,12 +319,16 @@ if [ "$os" = Darwin ]; then
     bad=0
     while IFS="$(printf '\t')" read -r app _; do
       total=$((total + 1))
-      if [ ! -d "/Applications/$app" ] && [ ! -d "$HOME/Applications/$app" ]; then
-        ng "$app が入っていない。scripts/switch で入る"
+      if [ ! -e "/Applications/$app/Contents/Info.plist" ] && [ ! -e "$HOME/Applications/$app/Contents/Info.plist" ]; then
+        ng "$app が入っていない。scripts/switch で入る(Homebrew がなければ scripts/setup $host)"
         bad=$((bad + 1))
       fi
     done <"$gui_apps"
-    [ "$bad" -eq 0 ] && ok "定義した $total 個の GUI アプリがすべて入っている"
+    if [ "$total" -eq 0 ]; then
+      ng "GUI アプリの一覧を読めない($gui_apps)"
+    elif [ "$bad" -eq 0 ]; then
+      ok "定義した $total 個の GUI アプリがすべて入っている"
+    fi
   fi
 fi
 

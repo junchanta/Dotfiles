@@ -181,16 +181,19 @@ Neovim の確認は普段の設定で起動するので、まだ取得してい�
 
 ### GUI アプリを足す、消す
 
-1. `modules/darwin.nix` の `guiApps` に、アプリの名前(`/Applications` に置かれる `.app` の名前)と cask の行を足すか、消す
+1. `modules/darwin.nix` の `guiApps` に、アプリの名前(`.app` の名前)と cask の行を足すか、消す
 2. 反映して、確かめる
 
 Homebrew の公式以外の tap から入れるものは、cask の行を `cask "<tap>/<名前>", trusted: true` と書く。
 `trusted: true` がないと、Homebrew がその cask を読まない。
 
-反映のときに入るのは、`/Applications` にないアプリだけである。
+反映のときに入るのは、`/Applications` にも `~/Applications` にもないアプリだけである。
 既にあるアプリは、Homebrew 以外の方法で入れたものでも、入っているとみなして触らない。
 版も上げない。
-一覧から消しても、アプリは自動では消えないので、手で消す。
+
+一覧から消しても、アプリは自動では消えない。
+Homebrew で入れたアプリは `brew uninstall --cask <名前>` で消す。
+Finder で消すと Homebrew に登録だけが残り、次の反映で入り直らない(そのときは `brew reinstall --cask <名前>` で入れ直す)。
 
 ### 管理する設定ファイルを足す
 

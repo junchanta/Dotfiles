@@ -42,9 +42,9 @@
 ## GUI アプリの入れ方
 
 - `modules/darwin.nix` に、アプリの名前と cask の行の組を書く
-- 反映のときに、`/Applications` にないアプリだけを `brew bundle install --no-upgrade` で入れる
+- 反映のときに、`/Applications` にも `~/Applications` にもないアプリだけを `brew bundle install --no-upgrade` で入れる
     - 失敗しても反映は止めず、警告を出す。足りないものは `scripts/check` が `[ERROR]` で示す
-- 「入っているか」は、Homebrew に登録されているかではなく、`/Applications` にあるかで決める
+- 「入っているか」は、Homebrew に登録されているかではなく、アプリの実体があるかで決める
     - 最初は Homebrew への登録で判定し、手で入れてあった Cursor を登録しようとした
     - 登録にはアプリの中身の書き換えが要り、macOS が動いているアプリの書き換えを管理者にも許さなかった
     - 目的は「アプリが入っていること」なので、入れ方を問わない判定に改めた
