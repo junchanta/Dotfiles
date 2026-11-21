@@ -33,7 +33,8 @@ in
     cask "penso/tap/herdr-gpui", trusted: true
   '';
 
-  home.activation.installHomebrewApps = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+  # 常駐ツールの登録(setupLaunchAgents)より後に行う。Homebrew が時間を取っても、常駐ツールの起動を待たせない
+  home.activation.installHomebrewApps = lib.hm.dag.entryAfter [ "setupLaunchAgents" ] ''
     if [ ! -x /opt/homebrew/bin/brew ]; then
       warnEcho "Homebrew がないので GUI アプリを入れていない。scripts/setup で入る"
     elif ! HOMEBREW_NO_AUTO_UPDATE=1 /opt/homebrew/bin/brew bundle check --no-upgrade --file=${lib.escapeShellArg brewfile} >/dev/null 2>&1; then

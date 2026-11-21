@@ -44,7 +44,7 @@ fi
 
 # 2. flake を使えるようにする
 nix_conf="$HOME/.config/nix/nix.conf"
-if ! grep -qs '^experimental-features.*flakes' "$nix_conf"; then
+if ! { grep -qs '^experimental-features.*nix-command' "$nix_conf" && grep -qs '^experimental-features.*flakes' "$nix_conf"; }; then
   step "flake を使えるようにする"
   mkdir -p "$(dirname "$nix_conf")"
   echo 'experimental-features = nix-command flakes' >>"$nix_conf"

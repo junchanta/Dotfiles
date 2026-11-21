@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # このマシンの環境が、リポジトリの定義どおりに動いているかを確かめる。
-# 何も変更しない。問題があれば ✗ を出し、終了コード 1 で終わる。
+# リポジトリも設定も変更しない。問題があれば ✗ を出し、終了コード 1 で終わる。
+# (Neovim の確認は普段の設定で起動するので、未取得のプラグインがあれば、その取得は走る)
 #
 # 使い方: scripts/check [--quick]
 #   --quick  時間のかかる Neovim の確認を省く
@@ -24,6 +25,7 @@ ng() {
   fail=1
 }
 note() { printf '      %s\n' "$1"; }
+notes_from() { head -n "$2" "$1" | while IFS= read -r line; do note "$line"; done; }
 
 # ---------------------------------------------------------------------------
 section "リポジトリ"
@@ -49,9 +51,13 @@ fi
 # ---------------------------------------------------------------------------
 section "反映の状態"
 
-profile="$HOME/.local/state/nix/profiles/home-manager"
-[ -e "$profile" ] || profile="/nix/var/nix/profiles/per-user/$USER/home-manager"
-gen="$(realpath "$profile" 2>/dev/null || true)"
+# 反映が最後まで終わったときにだけ更新される目印を見る。
+# 世代の一覧(プロファイル)は反映の途中で先に進むので、途中で失敗した反映を見分けられない
+gen="$(realpath "${XDG_STATE_HOME:-$HOME/.local/state}/home-manager/gcroots/current-home" 2>/dev/null || true)"
+if [ -z "$gen" ]; then
+  ng "最後まで終わった反映が見つからない。scripts/switch を実行する"
+  exit 1
+fi
 
 if built="$(nix build "$repo#homeConfigurations.$host.activationPackage" --no-link --print-out-paths 2>"$tmp/build.err")"; then
   if [ "$built" = "$gen" ]; then
@@ -61,67 +67,96 @@ if built="$(nix build "$repo#homeConfigurations.$host.activationPackage" --no-li
   fi
 else
   ng "リポジトリの定義をビルドできない"
-  tail -n 15 "$tmp/build.err" | while IFS= read -r line; do note "$line"; done
-fi
-
-if [ -z "$gen" ]; then
-  ng "home-manager の世代が見つからない"
-  exit 1
+  tail -n 15 "$tmp/build.err" >"$tmp/build.tail"
+  notes_from "$tmp/build.tail" 15
 fi
 
 # ---------------------------------------------------------------------------
 section "設定ファイルのリンク"
 
 files_root="$(realpath "$gen/home-files")"
-count=0
-bad=0
-while IFS= read -r -d '' src; do
-  rel="${src#"$files_root"/}"
-  dst="$HOME/$rel"
-  count=$((count + 1))
-  if [ ! -e "$dst" ]; then
-    ng "リンクが切れているか、存在しない: ~/$rel"
-    bad=$((bad + 1))
-  elif [ "$(realpath "$dst")" != "$(realpath "$src")" ]; then
-    ng "別のファイルに置き換わっている: ~/$rel"
-    bad=$((bad + 1))
-  fi
-done < <(find "$files_root" \( -type l -o -type f \) -print0)
-[ "$bad" -eq 0 ] && ok "$count 個のリンクがすべて正しい"
+if ! find "$files_root" \( -type l -o -type f \) -print0 >"$tmp/files" 2>"$tmp/find.err" || [ ! -s "$tmp/files" ]; then
+  ng "管理しているファイルの一覧を取れない"
+  notes_from "$tmp/find.err" 5
+else
+  count=0
+  bad=0
+  while IFS= read -r -d '' src; do
+    rel="${src#"$files_root"/}"
+    dst="$HOME/$rel"
+    count=$((count + 1))
+    if [ ! -e "$dst" ]; then
+      ng "リンクが切れているか、存在しない: ~/$rel"
+      bad=$((bad + 1))
+    elif [ "$(realpath "$dst")" != "$(realpath "$src")" ]; then
+      ng "別のファイルに置き換わっている: ~/$rel"
+      bad=$((bad + 1))
+    fi
+  done <"$tmp/files"
+  [ "$bad" -eq 0 ] && ok "$count 個のリンクがすべて正しい"
+fi
 
 # ---------------------------------------------------------------------------
 section "コマンド"
 
 fish="$HOME/.nix-profile/bin/fish"
 # shellcheck disable=SC2012
-bins="$(ls "$gen/home-path/bin" | tr '\n' ' ')"
+nix_bins="$(ls "$gen/home-path/bin" | tr '\n' ' ')"
+local_bins=""
+if [ -d "$HOME/.local/bin" ]; then
+  for f in "$HOME/.local/bin"/*; do
+    [ -f "$f" ] && [ -x "$f" ] && local_bins="$local_bins $(basename "$f")"
+  done
+fi
 
-# 新しく開いたログインシェルで、Nix で入れたコマンドがどこに解決されるかを調べる
+# 新しく開いたログインシェルで、各コマンドがどこに解決されるかを調べる
 # shellcheck disable=SC2016,SC2086
 env -i HOME="$HOME" USER="$USER" TERM=xterm-256color "$fish" -l -i -c '
   for c in $argv
     printf "%s\t%s\n" $c (command -s $c 2>/dev/null; or echo "-")
-  end' $bins >"$tmp/resolved" 2>"$tmp/fish.err"
+  end' $nix_bins $local_bins >"$tmp/resolved" 2>"$tmp/fish.err"
 
 if [ -s "$tmp/fish.err" ]; then
   ng "fish の起動時にエラーが出る"
-  head -n 10 "$tmp/fish.err" | while IFS= read -r line; do note "$line"; done
+  notes_from "$tmp/fish.err" 10
 else
   ok "fish がエラーなしで起動する"
 fi
 
-bad=0
-while IFS="$(printf '\t')" read -r name path; do
-  if [ "$path" != "$HOME/.nix-profile/bin/$name" ]; then
-    ng "$name が Nix のものではなく $path に解決される(PATH の順序を確かめる)"
-    bad=$((bad + 1))
-  fi
-done <"$tmp/resolved"
-[ "$bad" -eq 0 ] && ok "Nix で入れたコマンドは、すべて Nix のものが使われる"
+resolved_path() { awk -F '\t' -v name="$1" '$1 == name { print $2; exit }' "$tmp/resolved"; }
+
+# shellcheck disable=SC2086
+expected=$(set -- $nix_bins $local_bins && echo $#)
+if [ "$(wc -l <"$tmp/resolved" | tr -d ' ')" -ne "$expected" ]; then
+  ng "コマンドの解決先を調べられなかった(fish が途中で止まった)"
+else
+  # ~/.local/bin は、インストーラが入れるコマンド(claude など)の置き場で、最優先にしている
+  bad=0
+  for name in $local_bins; do
+    path="$(resolved_path "$name")"
+    if [ "$path" != "$HOME/.local/bin/$name" ]; then
+      ng "$name が ~/.local/bin のものではなく $path に解決される(PATH の順序を確かめる)"
+      bad=$((bad + 1))
+    fi
+  done
+  # shellcheck disable=SC2088
+  [ -n "$local_bins" ] && [ "$bad" -eq 0 ] && ok "~/.local/bin のコマンドは、すべてそこのものが使われる"
+
+  bad=0
+  for name in $nix_bins; do
+    case " $local_bins " in *" $name "*) continue ;; esac
+    path="$(resolved_path "$name")"
+    if [ "$path" != "$HOME/.nix-profile/bin/$name" ]; then
+      ng "$name が Nix のものではなく $path に解決される(PATH の順序を確かめる)"
+      bad=$((bad + 1))
+    fi
+  done
+  [ "$bad" -eq 0 ] && ok "Nix で入れたコマンドは、すべて Nix のものが使われる"
+fi
 
 if [ "$os" = Darwin ]; then
   bad=0
-  for name in $bins; do
+  for name in $nix_bins; do
     if [ -e "/opt/homebrew/bin/$name" ]; then
       ng "Homebrew にも $name がある($(readlink "/opt/homebrew/bin/$name"))。brew uninstall で消す"
       bad=$((bad + 1))
@@ -144,6 +179,24 @@ else
   ng "ログインシェルが Nix の fish ではない($login_shell)。scripts/setup $host を実行する"
 fi
 
+# 起動したときのログインシェルを覚えたまま動いているアプリを探す。
+# そのシェルが消えていると、アプリが新しいシェルを開く操作(新しいタブ、キーに割り当てたコマンド)が失敗する
+ps exww -o pid=,command= 2>/dev/null | awk '{
+  shell = ""
+  for (i = 2; i <= NF; i++) if ($i ~ /^SHELL=\/[A-Za-z0-9_.\/-]+$/) shell = substr($i, 7)
+  if (shell != "") print $1 "\t" shell
+}' >"$tmp/shells"
+bad=0
+# shellcheck disable=SC2013 # 上の awk が、空白を含まないパスだけを取り出している
+for shell in $(cut -f2 "$tmp/shells" | sort -u); do
+  [ -x "$shell" ] && continue
+  names="$(awk -F '\t' -v s="$shell" '$2 == s { print $1 }' "$tmp/shells" | while read -r pid; do basename "$(ps -o comm= -p "$pid" 2>/dev/null)"; done | sort -u | head -n 8 | tr '\n' ' ')"
+  ng "存在しないシェル($shell)を使い続けているアプリがある: $names"
+  note "そのアプリを起動し直すか、ログアウトして入り直す"
+  bad=$((bad + 1))
+done
+[ "$bad" -eq 0 ] && ok "動いているアプリは、存在するシェルを使っている"
+
 # ---------------------------------------------------------------------------
 section "アプリごとの設定"
 
@@ -154,7 +207,7 @@ if tmux -L "$sock" -f /dev/null new-session -d -s check 'sleep 30' 2>"$tmp/tmux.
     ok "tmux の設定に文法の誤りがない"
   else
     ng "tmux の設定に誤りがある"
-    head -n 5 "$tmp/tmux.err" | while IFS= read -r line; do note "$line"; done
+    notes_from "$tmp/tmux.err" 5
   fi
   tmux -L "$sock" kill-server 2>/dev/null
 else
@@ -165,21 +218,56 @@ if git config --global --list >/dev/null 2>"$tmp/git.err"; then
   ok "git の設定を読める"
 else
   ng "git の設定を読めない"
-  head -n 5 "$tmp/git.err" | while IFS= read -r line; do note "$line"; done
+  notes_from "$tmp/git.err" 5
 fi
 
 ghostty="/Applications/Ghostty.app/Contents/MacOS/ghostty"
-if [ -x "$ghostty" ]; then
+[ -x "$ghostty" ] || ghostty="$(command -v ghostty 2>/dev/null || true)"
+if [ -n "$ghostty" ]; then
   if "$ghostty" +validate-config >"$tmp/ghostty.out" 2>&1; then
     ok "ghostty の設定に誤りがない"
   else
     ng "ghostty の設定に誤りがある"
-    head -n 5 "$tmp/ghostty.out" | while IFS= read -r line; do note "$line"; done
+    notes_from "$tmp/ghostty.out" 5
   fi
+fi
+
+if [ "$os" = Darwin ] && [ -d "$HOME/.config/sketchybar" ]; then
+  bad=0
+  for f in "$HOME/.config/sketchybar/sketchybarrc" "$HOME/.config/sketchybar/plugins"/*.sh; do
+    if [ ! -x "$f" ]; then
+      ng "sketchybar のスクリプトがないか、実行できない: $f"
+      bad=$((bad + 1))
+    fi
+  done
+  [ "$bad" -eq 0 ] && ok "sketchybar のスクリプトがすべて実行できる"
 fi
 
 # ---------------------------------------------------------------------------
 if [ "$os" = Darwin ]; then
+  section "フォント"
+
+  marker="$files_root/Library/Fonts/.home-manager-fonts-version"
+  if [ ! -e "$marker" ]; then
+    note "Nix で入れるフォントは定義されていない"
+  else
+    fonts_src="$(cat "$marker")/share/fonts"
+    fonts_dst="$HOME/Library/Fonts/HomeManager"
+    total=0
+    missing=0
+    while IFS= read -r -d '' f; do
+      total=$((total + 1))
+      [ -e "$fonts_dst/${f#"$fonts_src"/}" ] || missing=$((missing + 1))
+    done < <(find -L "$fonts_src" -type f -print0 2>/dev/null)
+    if [ "$total" -eq 0 ]; then
+      note "Nix で入れるフォントは定義されていない"
+    elif [ "$missing" -eq 0 ]; then
+      ok "Nix で入れた $total 個のフォントファイルがすべてある"
+    else
+      ng "$missing 個のフォントファイルがない($fonts_dst)。scripts/switch を実行する"
+    fi
+  fi
+
   section "常駐ツール"
 
   found=0
@@ -187,19 +275,31 @@ if [ "$os" = Darwin ]; then
     [ -e "$plist" ] || continue
     found=1
     label="$(basename "$plist" .plist)"
+    name="${label##*.}"
     if launchctl print "gui/$(id -u)/$label" 2>/dev/null | grep -q 'state = running'; then
-      ok "$label が動いている"
+      ok "$name が動いている"
     else
-      ng "$label が動いていない(launchctl print gui/$(id -u)/$label で確かめる)"
+      ng "$name が動いていない"
+      case "$name" in
+      yabai | skhd) note "初めての反映と版を上げた後は、アクセシビリティの許可が要る(README の「困ったとき」)" ;;
+      esac
     fi
+    # 同じ名前のものが、Nix 以外の場所(以前の Homebrew 版など)から動いていないこと
+    for pid in $(pgrep -x "$name" 2>/dev/null); do
+      exe="$(ps -o comm= -p "$pid" 2>/dev/null)"
+      case "$exe" in
+      /nix/store/* | "") ;;
+      *) ng "$name が Nix 以外の場所から動いている($exe)" ;;
+      esac
+    done
   done
   [ "$found" -eq 0 ] && note "home-manager が管理する常駐ツールはない"
 
   if [ -e "$gen/LaunchAgents/org.nix-community.home.yabai.plist" ]; then
     if yabai -m query --spaces >/dev/null 2>&1; then
-      ok "yabai がウィンドウを操作できる"
+      ok "yabai が応答する"
     else
-      ng "yabai がウィンドウを操作できない。システム設定のアクセシビリティで yabai を許可する"
+      ng "yabai が応答しない"
     fi
   fi
 
@@ -213,8 +313,10 @@ if [ "$os" = Darwin ]; then
   elif HOMEBREW_NO_AUTO_UPDATE=1 /opt/homebrew/bin/brew bundle check --no-upgrade --verbose --file="$brewfile" >"$tmp/brew.out" 2>&1; then
     ok "定義した GUI アプリはすべて入っている"
   else
-    ng "入っていない GUI アプリがある"
-    grep -v '^Satisfy' "$tmp/brew.out" | head -n 10 | while IFS= read -r line; do note "$line"; done
+    ng "Homebrew に登録されていない GUI アプリがある"
+    grep -v '^Satisfy' "$tmp/brew.out" >"$tmp/brew.short"
+    notes_from "$tmp/brew.short" 10
+    note "パスワードを入力できるターミナルから scripts/switch を実行する"
   fi
 fi
 
@@ -246,11 +348,14 @@ EOF
   printf 'const f = (a: number) => a;\n' >"$samples/sample.ts"
   printf '#!/bin/sh\necho hi\n' >"$samples/sample.sh"
 
-  if DOTFILES_CHECK_DIR="$samples" nvim --headless "+luafile $repo/scripts/lib/nvim-check.lua" >"$tmp/nvim.out" 2>&1; then
-    ok "ファイルを開き、全プラグインを読み込んでもエラーが出ない"
-  else
+  if ! DOTFILES_CHECK_DIR="$samples" nvim --headless "+luafile $repo/scripts/lib/nvim-check.lua" >"$tmp/nvim.out" 2>&1; then
     ng "Neovim でエラーが出る"
-    head -n 30 "$tmp/nvim.out" | while IFS= read -r line; do note "$line"; done
+    notes_from "$tmp/nvim.out" 30
+  elif grep -qE 'E[0-9]+:|Error|stack traceback' "$tmp/nvim.out"; then
+    ng "Neovim がエラーらしい出力をした"
+    notes_from "$tmp/nvim.out" 30
+  else
+    ok "ファイルを開き、全プラグインを読み込み、キー操作を試してもエラーが出ない"
   fi
 fi
 
