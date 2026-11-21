@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # 新しいマシンを、このリポジトリの定義どおりにセットアップする。
 # 済んでいる手順は飛ばすので、何度実行してもよい。
+# パスワードや続行の確認を聞かれるので、入力できるターミナルで実行する。
 #
 # 使い方: scripts/setup <host>
 #   <host> は hosts/ のファイル名から .nix を除いたもの(例: macbook)
@@ -10,11 +11,19 @@ set -eu
 repo="$(cd "$(dirname "$0")/.." && pwd -P)"
 host="${1:-}"
 os="$(uname -s)"
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
 
 info() { printf '[INFO]  %s\n' "$1"; }
 die() {
   printf '[ERROR] %s\n' "$1" >&2
   exit 1
+}
+
+# 取得に失敗したものを実行しないように、いったんファイルに落としてから実行する
+download() {
+  curl -fsSL -o "$2" "$1" || die "取得できなかった: $1(ネットワークを確かめて、もう一度実行する)"
+  [ -s "$2" ] || die "取得した内容が空だった: $1"
 }
 
 if [ -z "$host" ] || [ ! -f "$repo/hosts/$host.nix" ]; then
@@ -33,13 +42,14 @@ fi
 export PATH="$HOME/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH"
 if ! command -v nix >/dev/null 2>&1; then
   info "Nix を入れる"
+  download https://nixos.org/nix/install "$tmp/nix-install.sh"
   if [ "$os" = Darwin ]; then
-    curl -L https://nixos.org/nix/install | sh
+    sh "$tmp/nix-install.sh"
   else
-    curl -L https://nixos.org/nix/install | sh -s -- --daemon
+    sh "$tmp/nix-install.sh" --daemon
   fi
   command -v nix >/dev/null 2>&1 ||
-    die "Nix を入れた。新しいターミナルを開いて、もう一度 scripts/setup $host を実行する"
+    die "Nix を入れたが、まだ使えない。新しいターミナルを開いて、もう一度 scripts/setup $host を実行する"
 fi
 # Nix の環境(証明書の場所など)を、このスクリプトにも読み込む。入れた直後のシェルには入っていない
 if [ -e /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]; then
@@ -48,20 +58,15 @@ if [ -e /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]; then
   . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
   set -u
 fi
+# flake を使う設定は次の手順で書く。それより前でも使えるように、ここでは引数で有効にする
+nix_flakes() { nix --extra-experimental-features 'nix-command flakes' "$@"; }
 
-# 2. flake を使えるようにする
-nix_conf="$HOME/.config/nix/nix.conf"
-if ! { grep -qs '^experimental-features.*nix-command' "$nix_conf" && grep -qs '^experimental-features.*flakes' "$nix_conf"; }; then
-  info "flake を使えるようにする"
-  mkdir -p "$(dirname "$nix_conf")"
-  echo 'experimental-features = nix-command flakes' >>"$nix_conf"
-fi
-
-# このマシンの種類(CPU と OS)が、指定した host の定義と合っているかを確かめる。
-# 合っていないと、別の種類のマシン用のものを入れようとして、反映が途中で止まる。
-# (ユーザー名とホームの場所は、このマシンの $USER と $HOME から読み取るので、確かめる必要がない)
-want_system="$(nix eval --impure --raw "$repo#homeConfigurations.$host.pkgs.stdenv.hostPlatform.system")"
-this_system="$(nix eval --impure --raw --expr builtins.currentSystem)"
+# 2. このマシンの種類(CPU と OS)が、指定した host の定義と合っているかを確かめる。
+#    合っていないと、別の種類のマシン用のものを入れようとして、反映が途中で止まる。
+#    何かを変える前に確かめる。
+#    (ユーザー名とホームの場所は、このマシンの $USER と $HOME から読み取るので、確かめる必要がない)
+want_system="$(nix_flakes eval --impure --raw "$repo#homeConfigurations.$host.pkgs.stdenv.hostPlatform.system")"
+this_system="$(nix_flakes eval --impure --raw --expr builtins.currentSystem)"
 if [ "$want_system" != "$this_system" ]; then
   echo "[ERROR] このマシンは、host「${host}」の定義と種類が合っていない" >&2
   echo "        定義:       $want_system" >&2
@@ -70,19 +75,32 @@ if [ "$want_system" != "$this_system" ]; then
   exit 1
 fi
 
-# 3. Homebrew(macOS の GUI アプリを入れるのに使う)
-if [ "$os" = Darwin ] && [ ! -x /opt/homebrew/bin/brew ]; then
-  info "Homebrew を入れる"
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+# 3. flake を使えるようにする
+nix_conf="$HOME/.config/nix/nix.conf"
+if ! { grep -qs '^experimental-features.*nix-command' "$nix_conf" && grep -qs '^experimental-features.*flakes' "$nix_conf"; }; then
+  info "flake を使えるようにする"
+  mkdir -p "$(dirname "$nix_conf")"
+  echo 'experimental-features = nix-command flakes' >>"$nix_conf"
 fi
 
-# 4. 反映する。flake.lock で固定した版の home-manager を使うため、ビルドしてから実行する
-info "環境を反映する"
+# インストーラがコマンドを置く場所。最初からあれば、fish が起動したときに PATH に入る
+mkdir -p "$HOME/.local/bin"
+
+# 4. Homebrew(macOS の GUI アプリを入れるのに使う)
+if [ "$os" = Darwin ] && [ ! -x /opt/homebrew/bin/brew ]; then
+  info "Homebrew を入れる"
+  download https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh "$tmp/brew-install.sh"
+  /bin/bash "$tmp/brew-install.sh"
+  [ -x /opt/homebrew/bin/brew ] || die "Homebrew を入れられなかった。上の出力を確かめて、もう一度実行する"
+fi
+
+# 5. 反映する。flake.lock で固定した版の home-manager を使うため、ビルドしてから実行する
+info "環境を反映する(初回は、ツールの取得に数分かかる)"
 # --impure は、ユーザー名とホームの場所を $USER と $HOME から読み取るために要る(flake.nix を参照)
 generation="$(nix build --impure "$repo#homeConfigurations.$host.activationPackage" --no-link --print-out-paths)"
 HOME_MANAGER_BACKUP_EXT=bak "$generation/activate"
 
-# 5. ログインシェルを Nix の fish にする
+# 6. ログインシェルを Nix の fish にする
 fish="$HOME/.nix-profile/bin/fish"
 if [ "$os" = Darwin ]; then
   login_shell="$(dscl . -read "/Users/$USER" UserShell 2>/dev/null | awk '{print $2}')"
@@ -98,16 +116,35 @@ else
   relogin=0
 fi
 
-# 6. 残りの手作業
-info "セットアップが終わった。残りの手作業:"
+# 7. 入ったものを確かめる。足りないものがあれば、ここで [ERROR] が出る
+info "セットアップの結果を確かめる"
+result=0
+"$repo/scripts/check" --quick || result=$?
+
+# 8. 残りの手作業
+cursor=""
+for candidate in /opt/homebrew/bin/cursor /usr/local/bin/cursor /Applications/Cursor.app/Contents/Resources/app/bin/cursor; do
+  if [ -x "$candidate" ]; then
+    cursor="$candidate"
+    break
+  fi
+done
+
+printf '\n'
+info "残りの手作業:"
 [ "$relogin" -eq 1 ] && echo "  - 一度ログアウトして入り直す(常駐しているアプリに新しいログインシェルを使わせるため)"
 echo "  - 言語別の道具など、このマシンだけの設定を ~/.config/fish/conf.d/90-local.fish に書く"
 echo "  - GitHub にログインする(まだなら): gh auth login"
-echo "  - Claude Code を入れる: curl -fsSL https://claude.ai/install.sh | bash"
-if [ "$os" = Darwin ]; then
-  echo "  - Cursor の拡張機能を入れる: cat $repo/config/cursor/extensions.txt | xargs -L1 /Applications/Cursor.app/Contents/Resources/app/bin/cursor --install-extension"
+echo "  - Claude Code を入れる: curl -fsSL https://claude.ai/install.sh | bash(入れた後、新しいシェルを開く)"
+if [ -n "$cursor" ]; then
+  echo "  - Cursor の拡張機能を入れる: cat $repo/config/cursor/extensions.txt | xargs -L1 $cursor --install-extension"
 else
-  echo "  - Cursor の拡張機能を入れる: cat $repo/config/cursor/extensions.txt | xargs -L1 cursor --install-extension"
+  echo "  - Cursor を入れた後に、拡張機能を入れる: cat $repo/config/cursor/extensions.txt | xargs -L1 cursor --install-extension"
 fi
+echo "  - ターミナルで nvim を一度起動する(プラグインが取得される)。その後で scripts/check を実行する"
 echo "  - node を入れた後に、Neovim で :Lazy build markdown-preview.nvim を実行する(Markdown のプレビュー用)"
-echo "最後に scripts/check を実行して、問題がないことを確かめる。"
+
+if [ "$result" -ne 0 ]; then
+  printf '\n'
+  die "セットアップは最後まで進んだが、上の確認で [ERROR] が出ている。直してから、もう一度 scripts/setup $host を実行する"
+fi

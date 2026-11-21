@@ -308,11 +308,16 @@ push するのは、`scripts/check` が通った master だけである。
 このリポジトリは非公開なので、clone するのに GitHub へのログインが要る。
 まっさらなマシンには `git` も `gh` もないので、先に Nix を入れ、Nix から `gh` を一時的に使って clone する。
 
+どの手順も、パスワードや続行の確認を聞かれる。入力できるターミナルで実行する。
+
 1. macOS では、開発用のコマンドラインツールを入れる(`git` とコンパイラが入る)
 
 ```sh
 xcode-select --install
 ```
+
+このコマンドは、インストールの画面を開いてすぐに戻る。
+画面のインストールが終わるまで待ち、`git --version` が版を表示することを確かめてから次に進む。
 
 2. Nix を入れ、新しいターミナルを開く
 
@@ -326,9 +331,12 @@ curl -L https://nixos.org/nix/install | sh -s -- --daemon
 3. GitHub にログインし、このリポジトリを `~/Work/Dotfiles` に clone する
 
 ```sh
-nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gh -- auth login
+nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gh -- auth login --hostname github.com --git-protocol https --web
 nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gh -- repo clone junchanta/Dotfiles ~/Work/Dotfiles
 ```
+
+1 行目はブラウザが開くので、表示されたコードを入力してログインする。
+clone されるのは master である。
 
 4. セットアップを実行する(`<host>` は `hosts/` のファイル名から `.nix` を除いたもの)
 
@@ -339,27 +347,36 @@ nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gh -- repo cl
 `scripts/setup` は次のことを行う。済んでいるものは飛ばすので、途中で止まったらもう一度実行すればよい。
 
 - Nix がなければ入れる
-- flake を使えるようにする
 - このマシンの種類(CPU と OS)が、指定した host の定義と合っているかを確かめる。合っていなければ、何も変えずに止まる
+- flake を使えるようにする
 - macOS で Homebrew がなければ入れる
 - 環境を反映する。既にあるファイルは `.bak` を付けて退避する。macOS では、足りない GUI アプリも入る
 - ログインシェルを Nix の fish にする(パスワードを聞かれる)
+- 最後に `scripts/check --quick` を実行する。足りないものがあれば `[ERROR]` が出て、失敗として終わる
 
 5. 最後に表示される「残りの手作業」を行う
     - ログインシェルを切り替えた場合は、一度ログアウトして入り直す。常駐しているアプリは起動したときのログインシェルを使い続けるので、入り直さないと古いシェルでコマンドを実行しようとして失敗する
     - マシンごとの設定を `~/.config/fish/conf.d/90-local.fish` に書く
-    - Claude Code を入れる
+    - Claude Code を入れる。入れた後、新しいシェルを開く
     - Cursor の拡張機能を入れる
+    - ターミナルで `nvim` を一度起動する。プラグインが取得される。Cursor の中の Neovim はプラグインを取得しないので、Cursor より先にターミナルで起動する
     - node を入れた後に、Neovim で `:Lazy build markdown-preview.nvim` を実行する
 6. `scripts/check` を通す
 
-Neovim は、最初に起動したときにプラグインを取得する。
-node や Go がまだないマシンでも、エラーなしで起動する。
+Neovim は、node や Go がまだないマシンでも、エラーなしで起動する。
 言語ごとの LSP やフォーマッタは、その言語を入れた後に Neovim を起動すると入る。
 
-`scripts/setup` は、設定済みの Mac で何度実行しても同じ結果になることと、host の定義と合わないときに止まることを確かめてある。
-Neovim は、プラグインが何も入っていない状態から、node のない環境で入れ直して確かめてある。
+macOS の yabai、skhd、sketchybar は、設定ファイルだけが配られ、本体は入らない。
+本体を Nix で入れる変更は、準備はできているが、まだ master に入れていない。
+
+確かめてある範囲は次のとおりである。
+
+- `scripts/setup` を、設定済みの Mac で何度実行しても同じ結果になること
+- Neovim を、プラグインが何も入っていない状態から、node のない環境で入れ直せること
+- ghostty の設定が、新しく入る版(1.4.0)でも通ること
+
 Nix と Homebrew を入れるところからの通しの実行は、まだしていない。
+Linux では、まだ何も確かめていない。
 
 Cursor の拡張機能を足したり消したりしたときは、一覧を更新してコミットする。
 

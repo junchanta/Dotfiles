@@ -1,15 +1,14 @@
-local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
-if not vim.loop.fs_stat(lazypath) then
-  -- bootstrap lazy.nvim
-  -- stylua: ignore
-  vim.fn.system({ "git", "clone", "--filter=blob:none", "https://github.com/folke/lazy.nvim.git", "--branch=stable", lazypath })
-end
-vim.opt.rtp:prepend(vim.env.LAZY or lazypath)
+require("bootstrap")
 
 require("lazy").setup({
     {
         "echasnovski/mini.surround",
         version = false,
+        -- まだ取得されていないマシンでは、読み込まない(エラーにしない)。
+        -- ターミナルで nvim を起動すると取得され、次から読み込まれる
+        cond = function()
+            return vim.loop.fs_stat(vim.fn.stdpath("data") .. "/lazy/mini.surround") ~= nil
+        end,
         config = function()
             require("mini.surround").setup({
                 -- Add custom surroundings to be used on top of builtin ones. For more
@@ -49,4 +48,9 @@ require("lazy").setup({
             })
         end
     },
+  }, {
+    -- Cursor の中では、足りないプラグインを自動で取得しない。
+    -- ここで取得すると、プラグインの版の記録(lazy-lock.json)が、この少数のプラグインだけの内容に書き換わる。
+    -- プラグインは、ターミナルで nvim を起動したときに取得される
+    install = { missing = false },
   })

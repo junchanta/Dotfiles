@@ -36,6 +36,10 @@ in
 
   # 共通の ghostty 設定が末尾で読み込む OS 別ファイル
   xdg.configFile."ghostty/local.conf".source = config.lib.dotfiles.link "ghostty/darwin.conf";
+  # 配色の定義。ghostty に同梱の配色は、版によって名前が変わる(1.1 の tokyonight_night は、1.4 では別名)。
+  # 同梱のものに頼らず、ここから配る
+  xdg.configFile."ghostty/themes/tokyonight_night".source =
+    config.lib.dotfiles.link "ghostty/themes/tokyonight_night";
 
   home.packages = [
     # sketchybar の表示に使うフォント

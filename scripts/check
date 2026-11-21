@@ -231,7 +231,9 @@ fi
 ghostty="/Applications/Ghostty.app/Contents/MacOS/ghostty"
 [ -x "$ghostty" ] || ghostty="$(command -v ghostty 2>/dev/null || true)"
 if [ -n "$ghostty" ]; then
-  if "$ghostty" +validate-config >"$tmp/ghostty.out" 2>&1; then
+  # ghostty の中から実行すると、動いている版の同梱ファイルの場所が環境変数で渡る。
+  # それを外して、設定がその版の ghostty 単体で通るかを確かめる
+  if env -u GHOSTTY_RESOURCES_DIR "$ghostty" +validate-config >"$tmp/ghostty.out" 2>&1; then
     ok "ghostty の設定に誤りがない"
   else
     ng "ghostty の設定に誤りがある"
@@ -247,7 +249,7 @@ if [ "$os" = Darwin ] && [ -d "$HOME/.config/sketchybar" ]; then
       bad=$((bad + 1))
     fi
   done
-  [ "$bad" -eq 0 ] && ok "sketchybar のスクリプトがすべて実行できる"
+  [ "$bad" -eq 0 ] && ok "sketchybar のスクリプトがそろっていて、実行権限がある"
 fi
 
 # ---------------------------------------------------------------------------
@@ -361,7 +363,21 @@ EOF
   printf 'const f = (a: number) => a;\n' >"$samples/sample.ts"
   printf '#!/bin/sh\necho hi\n' >"$samples/sample.sh"
 
-  if ! DOTFILES_CHECK_DIR="$samples" nvim --headless "+luafile $repo/scripts/lib/nvim-check.lua" >"$tmp/nvim.out" 2>&1; then
+  info "Neovim を確かめる(20 秒ほど。プラグインをまだ取得していないマシンでは、取得が終わるまで数分かかる)"
+  # 起動の途中で止まった場合に備えて、外側からも時間を区切る
+  DOTFILES_CHECK_DIR="$samples" nvim --headless "+luafile $repo/scripts/lib/nvim-check.lua" >"$tmp/nvim.out" 2>&1 &
+  nvim_pid=$!
+  (sleep 600 && kill "$nvim_pid" 2>/dev/null) &
+  timer_pid=$!
+  wait "$nvim_pid"
+  nvim_rc=$?
+  kill "$timer_pid" 2>/dev/null
+  wait "$timer_pid" 2>/dev/null
+
+  if [ "$nvim_rc" -ge 128 ]; then
+    ng "Neovim の確認が 10 分たっても終わらなかった"
+    details_from "$tmp/nvim.out" 30
+  elif [ "$nvim_rc" -ne 0 ]; then
     ng "Neovim でエラーが出る"
     details_from "$tmp/nvim.out" 30
   elif grep -qE 'E[0-9]+:|Error|stack traceback' "$tmp/nvim.out"; then
