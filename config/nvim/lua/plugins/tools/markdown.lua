@@ -11,7 +11,21 @@ return {
     {
         "iamcco/markdown-preview.nvim",
         cmd = { "MarkdownPreviewToggle", "MarkdownPreview", "MarkdownPreviewStop" },
-        build = "cd app && yarn install",
+        -- ビルドには node(npm)が要る。まだないマシンではビルドを飛ばし、エラーにしない。
+        -- node を入れた後に :Lazy build markdown-preview.nvim を実行すると入る
+        build = function(plugin)
+            if vim.fn.executable("npm") == 0 then
+                vim.notify(
+                    "markdown-preview.nvim: npm がないのでビルドを飛ばした。node を入れた後に :Lazy build markdown-preview.nvim を実行する",
+                    vim.log.levels.WARN
+                )
+                return
+            end
+            local result = vim.system({ "npm", "install" }, { cwd = plugin.dir .. "/app", text = true }):wait()
+            if result.code ~= 0 then
+                error("markdown-preview.nvim のビルドに失敗した:\n" .. (result.stderr or ""))
+            end
+        end,
         init = function()
             vim.g.mkdp_filetypes = { "markdown" }
         end,

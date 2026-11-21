@@ -41,6 +41,13 @@ if ! command -v nix >/dev/null 2>&1; then
   command -v nix >/dev/null 2>&1 ||
     die "Nix を入れた。新しいターミナルを開いて、もう一度 scripts/setup $host を実行する"
 fi
+# Nix の環境(証明書の場所など)を、このスクリプトにも読み込む。入れた直後のシェルには入っていない
+if [ -e /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]; then
+  set +u
+  # shellcheck disable=SC1091
+  . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+  set -u
+fi
 
 # 2. flake を使えるようにする
 nix_conf="$HOME/.config/nix/nix.conf"
@@ -48,6 +55,19 @@ if ! { grep -qs '^experimental-features.*nix-command' "$nix_conf" && grep -qs '^
   info "flake を使えるようにする"
   mkdir -p "$(dirname "$nix_conf")"
   echo 'experimental-features = nix-command flakes' >>"$nix_conf"
+fi
+
+# このマシンが、指定した host の定義と合っているかを確かめる。合っていないと、反映が途中で止まる
+want_user="$(nix eval --raw "$repo#homeConfigurations.$host.config.home.username")"
+want_home="$(nix eval --raw "$repo#homeConfigurations.$host.config.home.homeDirectory")"
+want_system="$(nix eval --raw "$repo#homeConfigurations.$host.pkgs.stdenv.hostPlatform.system")"
+this_system="$(nix eval --raw --impure --expr builtins.currentSystem)"
+if [ "$want_user" != "$USER" ] || [ "$want_home" != "$HOME" ] || [ "$want_system" != "$this_system" ]; then
+  echo "[ERROR] このマシンは、host「${host}」の定義と合っていない" >&2
+  echo "        定義:       ユーザー ${want_user}、ホーム ${want_home}、種類 $want_system" >&2
+  echo "        このマシン: ユーザー ${USER}、ホーム ${HOME}、種類 $this_system" >&2
+  echo "        README の「マシンを増やす」に従って、このマシン用の host を足す" >&2
+  exit 1
 fi
 
 # 3. Homebrew(macOS の GUI アプリを入れるのに使う)
@@ -81,6 +101,12 @@ fi
 info "セットアップが終わった。残りの手作業:"
 [ "$relogin" -eq 1 ] && echo "  - 一度ログアウトして入り直す(常駐しているアプリに新しいログインシェルを使わせるため)"
 echo "  - 言語別の道具など、このマシンだけの設定を ~/.config/fish/conf.d/90-local.fish に書く"
+echo "  - GitHub にログインする(まだなら): gh auth login"
 echo "  - Claude Code を入れる: curl -fsSL https://claude.ai/install.sh | bash"
-echo "  - Cursor の拡張機能を入れる: cat $repo/config/cursor/extensions.txt | xargs -L1 cursor --install-extension"
+if [ "$os" = Darwin ]; then
+  echo "  - Cursor の拡張機能を入れる: cat $repo/config/cursor/extensions.txt | xargs -L1 /Applications/Cursor.app/Contents/Resources/app/bin/cursor --install-extension"
+else
+  echo "  - Cursor の拡張機能を入れる: cat $repo/config/cursor/extensions.txt | xargs -L1 cursor --install-extension"
+fi
+echo "  - node を入れた後に、Neovim で :Lazy build markdown-preview.nvim を実行する(Markdown のプレビュー用)"
 echo "最後に scripts/check を実行して、問題がないことを確かめる。"

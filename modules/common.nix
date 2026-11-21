@@ -64,6 +64,7 @@ in
 
   # conf.d のファイルは名前順に読まれる。10 が OS 別、20 が共通、90 が各マシンの管理外ファイル
   xdg.configFile."fish/conf.d/20-common.fish".source = config.lib.dotfiles.link "fish/common.fish";
+  xdg.configFile."fish/conf.d/21-theme.fish".source = config.lib.dotfiles.link "fish/theme.fish";
 
   # 設定ファイルのリンク。左が配置先、右が config/ の中の実体
   xdg.configFile."nvim".source = config.lib.dotfiles.link "nvim";

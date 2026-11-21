@@ -244,7 +244,9 @@ return {
             local function ensure_installed()
                 for _, tool in ipairs(opts.ensure_installed) do
                     local p = mr.get_package(tool)
-                    if not p:is_installed() then
+                    -- 入れている途中のものをもう一度入れようとすると、mason がエラーにする。
+                    -- 新しいマシンでの初回の起動で、この関数が 2 回呼ばれて起きていた
+                    if not p:is_installed() and not p:is_installing() then
                         p:install()
                     end
                 end

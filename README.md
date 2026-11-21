@@ -64,7 +64,7 @@ Omarchy に対応させるときは、次の点を直す必要がある。
 
 - 全マシン共通(`modules/common.nix`)
     - CLI ツール：eza、bat、tree、wget、ripgrep、fzf、jq、direnv、git、gh、lazygit、neovim、tmux、herdr、fish、luarocks、lua-language-server、shfmt、tree-sitter
-    - 設定：fish、nvim、tmux、git、ghostty、Cursor、herdr
+    - 設定：fish(配色を含む)、nvim、tmux、git、ghostty、Cursor、herdr
     - Claude Code：グローバルの `CLAUDE.md` と、自作の skill(nvim-key、catch-up、dotfiles)
 - macOS だけ(`modules/darwin.nix`)
     - 設定：yabai、skhd、sketchybar、fish と ghostty の macOS 用の部分
@@ -305,8 +305,32 @@ push するのは、`scripts/check` が通った master だけである。
 
 ## 新しいマシンのセットアップ
 
-1. このリポジトリを `~/Work/Dotfiles` に clone する
-2. セットアップを実行する(`<host>` は `hosts/` のファイル名から `.nix` を除いたもの)
+このリポジトリは非公開なので、clone するのに GitHub へのログインが要る。
+まっさらなマシンには `git` も `gh` もないので、先に Nix を入れ、Nix から `gh` を一時的に使って clone する。
+
+1. macOS では、開発用のコマンドラインツールを入れる(`git` とコンパイラが入る)
+
+```sh
+xcode-select --install
+```
+
+2. Nix を入れ、新しいターミナルを開く
+
+```sh
+# macOS
+curl -L https://nixos.org/nix/install | sh
+# Linux
+curl -L https://nixos.org/nix/install | sh -s -- --daemon
+```
+
+3. GitHub にログインし、このリポジトリを `~/Work/Dotfiles` に clone する
+
+```sh
+nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gh -- auth login
+nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gh -- repo clone junchanta/Dotfiles ~/Work/Dotfiles
+```
+
+4. セットアップを実行する(`<host>` は `hosts/` のファイル名から `.nix` を除いたもの)
 
 ```sh
 ~/Work/Dotfiles/scripts/setup <host>
@@ -316,19 +340,26 @@ push するのは、`scripts/check` が通った master だけである。
 
 - Nix がなければ入れる
 - flake を使えるようにする
+- このマシンのユーザー名、ホームの場所、CPU の種類が、指定した host の定義と合っているかを確かめる。合っていなければ、何も変えずに止まる
 - macOS で Homebrew がなければ入れる
-- 環境を反映する。既にあるファイルは `.bak` を付けて退避する
+- 環境を反映する。既にあるファイルは `.bak` を付けて退避する。macOS では、足りない GUI アプリも入る
 - ログインシェルを Nix の fish にする(パスワードを聞かれる)
 
-3. 最後に表示される「残りの手作業」を行う
+5. 最後に表示される「残りの手作業」を行う
     - ログインシェルを切り替えた場合は、一度ログアウトして入り直す。常駐しているアプリは起動したときのログインシェルを使い続けるので、入り直さないと古いシェルでコマンドを実行しようとして失敗する
     - マシンごとの設定を `~/.config/fish/conf.d/90-local.fish` に書く
     - Claude Code を入れる
     - Cursor の拡張機能を入れる
-4. `scripts/check` を通す
+    - node を入れた後に、Neovim で `:Lazy build markdown-preview.nvim` を実行する
+6. `scripts/check` を通す
 
-`scripts/setup` は、設定済みの Mac で何度実行しても同じ結果になることだけを確かめてある。
-まっさらなマシンでは、まだ実行していない。
+Neovim は、最初に起動したときにプラグインを取得する。
+node や Go がまだないマシンでも、エラーなしで起動する。
+言語ごとの LSP やフォーマッタは、その言語を入れた後に Neovim を起動すると入る。
+
+`scripts/setup` は、設定済みの Mac で何度実行しても同じ結果になることと、host の定義と合わないときに止まることを確かめてある。
+Neovim は、プラグインが何も入っていない状態から、node のない環境で入れ直して確かめてある。
+Nix と Homebrew を入れるところからの通しの実行は、まだしていない。
 
 Cursor の拡張機能を足したり消したりしたときは、一覧を更新してコミットする。
 
