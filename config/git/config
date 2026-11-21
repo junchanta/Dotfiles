@@ -2,7 +2,7 @@
 [user]
 # Please adapt and uncomment the following lines:
 	name = junchanta
-	email = juc3dj@gmail.cm
+	email = juc3dj@gmail.com
 [http]
 	postBuffer = 524288000
 [credential "https://github.com"]
