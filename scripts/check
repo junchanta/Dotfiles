@@ -445,10 +445,14 @@ EOF
   # 起動の途中で止まった場合に備えて、外側からも時間を区切る
   DOTFILES_CHECK_DIR="$samples" nvim --headless "+luafile $repo/scripts/lib/nvim-check.lua" >"$tmp/nvim.out" 2>&1 &
   nvim_pid=$!
-  (sleep 600 && kill "$nvim_pid" 2>/dev/null) &
+  # 時間を区切る側は、出力先を切り離す。つないだままだと、このスクリプトの出力をパイプで受けている相手が、
+  # 中の sleep が終わるまで(10 分)待たされる
+  (sleep 600 && kill "$nvim_pid" 2>/dev/null) </dev/null >/dev/null 2>&1 &
   timer_pid=$!
   wait "$nvim_pid"
   nvim_rc=$?
+  # 中の sleep を先に止める。外側だけを止めると、sleep が 10 分残る
+  pkill -P "$timer_pid" 2>/dev/null
   kill "$timer_pid" 2>/dev/null
   wait "$timer_pid" 2>/dev/null
 
