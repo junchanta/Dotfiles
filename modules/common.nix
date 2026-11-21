@@ -14,13 +14,13 @@ let
     if pkgs.stdenv.hostPlatform.isDarwin then "Library/Application Support/Cursor/User" else ".config/Cursor/User";
 
   # 公式のインストーラで入れるツール。ツール自身が新しい版に更新するので、Nix で版を固定しない。
-  # 反映のときに、present にコマンドがないものだけを入れる
+  # 反映のときに、present にコマンドがないものだけを入れる。
+  # args はインストーラに渡す引数で、なければ書かなくてよい
   installerTools = [
     {
       name = "Claude Code";
       present = "${config.home.homeDirectory}/.local/bin/claude";
       url = "https://claude.ai/install.sh";
-      args = "";
     }
     {
       name = "opencode";
@@ -32,7 +32,7 @@ let
   ];
   # 1 行に「名前、コマンドの場所、インストーラの URL、インストーラに渡す引数」をタブ区切りで書いた一覧
   installerToolsList = pkgs.writeText "installer-tools" (
-    lib.concatMapStrings (t: "${t.name}\t${t.present}\t${t.url}\t${t.args}\n") installerTools
+    lib.concatMapStrings (t: "${t.name}\t${t.present}\t${t.url}\t${t.args or ""}\n") installerTools
   );
 in
 {
@@ -118,7 +118,7 @@ in
     while IFS="$(printf '\t')" read -r -u 3 name present url args; do
       [ -x "$present" ] && continue
       echo "[INFO]  $name を公式のインストーラで入れる(ここからインストーラの出力)"
-      if [ -n "''${DRY_RUN:-}" ]; then
+      if [[ -v DRY_RUN ]]; then
         echo "(dry run なので、実行しない: $url)"
         continue
       fi

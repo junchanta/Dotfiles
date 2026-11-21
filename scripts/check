@@ -21,6 +21,7 @@ trap 'rm -rf "$tmp"' EXIT
 # 出力の各行の先頭に、種類を付ける
 #   [OK]    確かめて、問題がなかった
 #   [ERROR] 問題がある。直す必要がある
+#   [WARN]  直すことを勧めるが、失敗にはしない
 #   [INFO]  知らせるだけ。直す必要はない
 #   (字下げだけの行は、直前の行の補足)
 section() { printf '\n== %s\n' "$1"; }
@@ -30,6 +31,7 @@ ng() {
   fail=1
 }
 info() { printf '[INFO]  %s\n' "$1"; }
+warn() { printf '[WARN]  %s\n' "$1"; }
 detail() { printf '        %s\n' "$1"; }
 details_from() { head -n "$2" "$1" | while IFS= read -r line; do detail "$line"; done; }
 
@@ -117,12 +119,26 @@ if [ -d "$HOME/.local/bin" ]; then
 fi
 # 公式のインストーラで入れるツール(名前、コマンドの場所、URL、引数のタブ区切り)
 installer_tools="$HOME/.config/dotfiles/installer-tools"
-installer_bins=""
+# Homebrew で入れるもの(名前、確かめる場所、Homebrew に渡す行のタブ区切り)。このうちコマンドだけを見る
+homebrew_apps="$HOME/.config/dotfiles/homebrew-apps"
+# 「名前<TAB>コマンドの場所」を集める。入っていることと、そのコマンドが使われることを確かめる
+: >"$tmp/tools"
 if [ -s "$installer_tools" ]; then
-  while IFS="$(printf '\t')" read -r _ present _ _; do
-    installer_bins="$installer_bins $(basename "$present")"
+  while IFS="$(printf '\t')" read -r name present _ _; do
+    printf '%s\t%s\n' "$name" "$present" >>"$tmp/tools"
   done <"$installer_tools"
 fi
+if [ -s "$homebrew_apps" ]; then
+  while IFS="$(printf '\t')" read -r name present _; do
+    case "$present" in
+    */bin/*) printf '%s\t%s\n' "$name" "$present" >>"$tmp/tools" ;;
+    esac
+  done <"$homebrew_apps"
+fi
+installer_bins=""
+while IFS="$(printf '\t')" read -r _ present; do
+  installer_bins="$installer_bins $(basename "$present")"
+done <"$tmp/tools"
 
 # 新しく開いたログインシェルで、各コマンドがどこに解決されるかを調べる
 # shellcheck disable=SC2016,SC2086
@@ -169,22 +185,26 @@ else
   [ "$bad" -eq 0 ] && ok "Nix で入れたコマンドは、すべて Nix のものが使われる"
 fi
 
-# 公式のインストーラで入れるツールが、入っていて、そのコマンドが使われること
-if [ -s "$installer_tools" ]; then
+# 自分で更新するツール(Claude Code、opencode、Codex)が、入っていて、そのコマンドが使われること
+if [ -s "$tmp/tools" ]; then
   bad=0
-  while IFS="$(printf '\t')" read -r name present _ _; do
+  while IFS="$(printf '\t')" read -r name present; do
+    path="$(resolved_path "$(basename "$present")")"
     if [ ! -x "$present" ]; then
       ng "$name が入っていない。scripts/switch で入る"
       bad=$((bad + 1))
-    else
-      path="$(resolved_path "$(basename "$present")")"
-      if [ -n "$path" ] && [ "$path" != "$present" ]; then
-        ng "$name のコマンドが $present ではなく $path に解決される(別の方法で入れたものが残っている)"
-        bad=$((bad + 1))
-      fi
+    elif [ -z "$path" ]; then
+      # 解決先を調べられなかった。上で [ERROR] を出している
+      bad=$((bad + 1))
+    elif [ "$path" = "-" ]; then
+      ng "$name は入っているが、コマンドの場所($(dirname "$present"))が PATH に入っていない。config/fish/common.fish に足す"
+      bad=$((bad + 1))
+    elif [ "$path" != "$present" ]; then
+      ng "$name のコマンドが $present ではなく $path に解決される。別の方法で入れた古いものが残っているので、消す"
+      bad=$((bad + 1))
     fi
-  done <"$installer_tools"
-  [ "$bad" -eq 0 ] && ok "公式のインストーラで入れるツール(Claude Code など)が入っていて、それが使われる"
+  done <"$tmp/tools"
+  [ "$bad" -eq 0 ] && ok "自分で更新するツール(Claude Code、opencode、Codex)が入っていて、それが使われる"
 fi
 
 if [ "$os" = Darwin ]; then
@@ -229,6 +249,20 @@ for shell in $(cut -f2 "$tmp/shells" | sort -u); do
   bad=$((bad + 1))
 done
 [ "$bad" -eq 0 ] && ok "動いているアプリは、存在するシェルを使っている"
+
+# 入れ替えや削除で実行ファイルが消えたのに、古いものから動き続けているアプリを探す。
+# 動いてはいるが、足りない部品を読み込めずに一部の操作が失敗することがある
+ps -x -o pid=,comm= 2>/dev/null | while read -r _ exe; do
+  case "$exe" in
+  /*) [ -e "$exe" ] || basename "$exe" ;;
+  esac
+done | sort | uniq -c | awk '{ printf "%s(%s 個)\n", $2, $1 }' >"$tmp/gone"
+if [ -s "$tmp/gone" ]; then
+  warn "消えた実行ファイルから動き続けているアプリがある: $(tr '\n' ' ' <"$tmp/gone")"
+  detail "入れ替える前から動いているものである。終了して開き直すと、新しいものに切り替わる"
+else
+  ok "動いているアプリは、すべて今ある実行ファイルから動いている"
+fi
 
 # ---------------------------------------------------------------------------
 section "アプリごとの設定"
@@ -340,8 +374,7 @@ if [ "$os" = Darwin ]; then
 
   section "Homebrew で入れるもの"
 
-  # 名前、確かめる場所(コロン区切り。どれかにあればよい)、Homebrew に渡す行のタブ区切り
-  homebrew_apps="$HOME/.config/dotfiles/homebrew-apps"
+  # 確かめる場所はコロン区切りで、どれかにあればよい
   if [ ! -s "$homebrew_apps" ]; then
     info "Homebrew で入れるものは定義されていない"
   else

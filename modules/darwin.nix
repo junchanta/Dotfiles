@@ -104,11 +104,14 @@ in
           | run env HOMEBREW_NO_AUTO_UPDATE=1 /opt/homebrew/bin/brew bundle install --no-upgrade --file=- \
           || echo "[WARN]  Homebrew が失敗した。反映は続ける"
         echo "[INFO]  Homebrew の出力はここまで"
-        # 入ったかどうかを、もう一度確かめる。Homebrew は、登録だけが残っているものを入れ直さない
-        while IFS="$(printf '\t')" read -r name present line; do
-          homebrewAppInstalled "$present" \
-            || echo "[WARN]  $name が入っていない($line)。Homebrew に登録だけが残っているなら brew reinstall --cask で入れ直す"
-        done < ${homebrewAppsList}
+        # 入ったかどうかを、もう一度確かめる。Homebrew は、登録だけが残っているものを入れ直さない。
+        # dry run では何も入れていないので、確かめない
+        if [[ ! -v DRY_RUN ]]; then
+          while IFS="$(printf '\t')" read -r name present line; do
+            homebrewAppInstalled "$present" \
+              || echo "[WARN]  $name が入っていない($line)。Homebrew に登録だけが残っているなら brew reinstall --cask で入れ直す"
+          done < ${homebrewAppsList}
+        fi
       else
         echo "[WARN]  Homebrew がないので、Homebrew で入れるものを入れていない。scripts/setup で入る"
       fi
