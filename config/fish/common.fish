@@ -5,6 +5,8 @@
 # Nix で入れたツールを PATH の先頭に置く(Homebrew などの同名ツールより優先する)
 fish_add_path --path --move $HOME/.nix-profile/bin /nix/var/nix/profiles/default/bin
 fish_add_path --path $HOME/.local/bin
+# opencode の公式インストーラが置く場所
+fish_add_path --path $HOME/.opencode/bin
 
 # 共有する自作関数は、このファイルの実体と同じ場所の functions/ に置く
 set -l here (path dirname (path resolve (status filename)))

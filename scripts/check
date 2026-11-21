@@ -115,13 +115,21 @@ if [ -d "$HOME/.local/bin" ]; then
     [ -f "$f" ] && [ -x "$f" ] && local_bins="$local_bins $(basename "$f")"
   done
 fi
+# 公式のインストーラで入れるツール(名前、コマンドの場所、URL、引数のタブ区切り)
+installer_tools="$HOME/.config/dotfiles/installer-tools"
+installer_bins=""
+if [ -s "$installer_tools" ]; then
+  while IFS="$(printf '\t')" read -r _ present _ _; do
+    installer_bins="$installer_bins $(basename "$present")"
+  done <"$installer_tools"
+fi
 
 # 新しく開いたログインシェルで、各コマンドがどこに解決されるかを調べる
 # shellcheck disable=SC2016,SC2086
 env -i HOME="$HOME" USER="$USER" TERM=xterm-256color "$fish" -l -i -c '
   for c in $argv
     printf "%s\t%s\n" $c (command -s $c 2>/dev/null; or echo "-")
-  end' $nix_bins $local_bins >"$tmp/resolved" 2>"$tmp/fish.err"
+  end' $nix_bins $local_bins $installer_bins >"$tmp/resolved" 2>"$tmp/fish.err"
 
 if [ -s "$tmp/fish.err" ]; then
   ng "fish の起動時にエラーが出る"
@@ -133,7 +141,7 @@ fi
 resolved_path() { awk -F '\t' -v name="$1" '$1 == name { print $2; exit }' "$tmp/resolved"; }
 
 # shellcheck disable=SC2086
-expected=$(set -- $nix_bins $local_bins && echo $#)
+expected=$(set -- $nix_bins $local_bins $installer_bins && echo $#)
 if [ "$(wc -l <"$tmp/resolved" | tr -d ' ')" -ne "$expected" ]; then
   ng "コマンドの解決先を調べられなかった(fish が途中で止まった)"
 else
@@ -159,6 +167,24 @@ else
     fi
   done
   [ "$bad" -eq 0 ] && ok "Nix で入れたコマンドは、すべて Nix のものが使われる"
+fi
+
+# 公式のインストーラで入れるツールが、入っていて、そのコマンドが使われること
+if [ -s "$installer_tools" ]; then
+  bad=0
+  while IFS="$(printf '\t')" read -r name present _ _; do
+    if [ ! -x "$present" ]; then
+      ng "$name が入っていない。scripts/switch で入る"
+      bad=$((bad + 1))
+    else
+      path="$(resolved_path "$(basename "$present")")"
+      if [ -n "$path" ] && [ "$path" != "$present" ]; then
+        ng "$name のコマンドが $present ではなく $path に解決される(別の方法で入れたものが残っている)"
+        bad=$((bad + 1))
+      fi
+    fi
+  done <"$installer_tools"
+  [ "$bad" -eq 0 ] && ok "公式のインストーラで入れるツール(Claude Code など)が入っていて、それが使われる"
 fi
 
 if [ "$os" = Darwin ]; then
@@ -312,25 +338,33 @@ if [ "$os" = Darwin ]; then
     fi
   fi
 
-  section "GUI アプリ"
+  section "Homebrew で入れるもの"
 
-  gui_apps="$HOME/.config/dotfiles/gui-apps"
-  if [ ! -s "$gui_apps" ]; then
-    info "GUI アプリは定義されていない"
+  # 名前、確かめる場所(コロン区切り。どれかにあればよい)、Homebrew に渡す行のタブ区切り
+  homebrew_apps="$HOME/.config/dotfiles/homebrew-apps"
+  if [ ! -s "$homebrew_apps" ]; then
+    info "Homebrew で入れるものは定義されていない"
   else
     total=0
     bad=0
-    while IFS="$(printf '\t')" read -r app _; do
+    while IFS="$(printf '\t')" read -r name present _; do
       total=$((total + 1))
-      if [ ! -e "/Applications/$app/Contents/Info.plist" ] && [ ! -e "$HOME/Applications/$app/Contents/Info.plist" ]; then
-        ng "$app が入っていない。scripts/switch で入る(Homebrew がなければ scripts/setup $host)"
+      found=0
+      old_ifs="$IFS"
+      IFS=:
+      for path in $present; do
+        [ -e "$path" ] && found=1
+      done
+      IFS="$old_ifs"
+      if [ "$found" -eq 0 ]; then
+        ng "$name が入っていない。scripts/switch で入る(Homebrew がなければ scripts/setup $host)"
         bad=$((bad + 1))
       fi
-    done <"$gui_apps"
+    done <"$homebrew_apps"
     if [ "$total" -eq 0 ]; then
-      ng "GUI アプリの一覧を読めない($gui_apps)"
+      ng "Homebrew で入れるものの一覧を読めない($homebrew_apps)"
     elif [ "$bad" -eq 0 ]; then
-      ok "定義した $total 個の GUI アプリがすべて入っている"
+      ok "定義した $total 個(GUI アプリと Codex)がすべて入っている"
     fi
   fi
 fi

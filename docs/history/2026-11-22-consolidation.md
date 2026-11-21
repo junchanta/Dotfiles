@@ -24,9 +24,9 @@
 
 - 何を入れるかは、すべてこのリポジトリに書く
 - 手段は Nix を基本にする
-- macOS の GUI アプリだけは Homebrew の cask にする
-    - アプリ自身が更新するので、Nix で版を固定すると食い違う
-    - cask の一覧は `modules/darwin.nix` に書き、反映のときに足りないものを入れる
+- 自分で更新するもの(macOS の GUI アプリ、AI のコーディングツール)は、Nix で入れない
+    - 本体が自分で更新するので、Nix で版を固定すると食い違う
+    - 一覧はこのリポジトリに書き、反映のときに足りないものを入れる
 - 言語の実行環境は管理しない(11-18 の決定のまま)
 
 ## nix-darwin を使わない
@@ -53,6 +53,18 @@
 - 対象は、管理している設定が前提にするアプリに絞った
     - ghostty、Cursor、herdr のアプリ版
     - ほかの cask は管理せず、消しもしない
+
+## AI のコーディングツールも、版を固定しない
+
+- 対象は Claude Code、Codex、opencode、Antigravity、Orca である
+- どれも更新が速く、自分の更新の仕組みを持つ。GUI アプリと同じく「入っていなければ入れる」だけにし、版は固定しない
+    - Nix で固定すると、`nix flake update` をするまで古い版のままになる
+    - 調べた時点で、nixpkgs の Antigravity は 2.6、Homebrew は 2.32 だった。opencode は Nix では手元でのビルドが必要だった
+- 入れ方
+    - Antigravity、Orca、Codex：Homebrew の cask
+    - Claude Code、opencode：それぞれの公式のインストーラ。Claude Code は、それまでこの Mac で使っていた方式と同じである
+- 公式のインストーラは、反映のときに取得して実行する。取得できなかった場合は、警告を出して反映を続ける
+- この Mac では、それまで入っていた npm 版の Codex と、Homebrew の古い opencode(1.14)を消し、上の方式のものに入れ替えた
 
 ## フォントを Nix で入れる
 

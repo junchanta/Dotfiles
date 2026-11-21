@@ -135,7 +135,7 @@ info "残りの手作業:"
 [ "$relogin" -eq 1 ] && echo "  - 一度ログアウトして入り直す(常駐しているアプリに新しいログインシェルを使わせるため)"
 echo "  - 言語別の道具など、このマシンだけの設定を ~/.config/fish/conf.d/90-local.fish に書く"
 echo "  - GitHub にログインする(まだなら): gh auth login"
-echo "  - Claude Code を入れる: curl -fsSL https://claude.ai/install.sh | bash(入れた後、新しいシェルを開く)"
+echo "  - Claude Code、Codex、opencode などにログインする(それぞれ、最初に起動したときに案内が出る)"
 if [ -n "$cursor" ]; then
   echo "  - Cursor の拡張機能を入れる: cat $repo/config/cursor/extensions.txt | xargs -L1 $cursor --install-extension"
 else

@@ -11,7 +11,7 @@
 - **Nix**：パッケージマネージャである。入れたものはすべて `/nix/store` に置かれ、設定ファイルに書いた内容から環境を組み立て直せる。
 - **home-manager**：Nix の上で動く道具で、ユーザーのホームディレクトリ(ツール、設定ファイル、フォント、常駐ツール)を管理する。
 - **flake**：Nix の設定リポジトリの形式である。`flake.nix` が依存と出力を定め、`flake.lock` が依存の版を固定する。
-- **Homebrew の cask**：macOS の GUI アプリを入れる仕組みである。
+- **Homebrew の cask**：macOS の GUI アプリなどを入れる仕組みである。
 
 ## 方針
 
@@ -19,7 +19,9 @@
 入れる手段は次のように決めている。
 
 - 基本は Nix で入れる。CLI ツールとフォントが当てはまる
-- macOS の GUI アプリだけは Homebrew の cask で入れる。アプリ自身が新しい版に更新するので、Nix で版を固定すると食い違うためである。cask の一覧もこのリポジトリに書き、反映のときに足りないものが入る
+- 自分で新しい版に更新するものは、Nix で入れない。Nix で版を固定すると、本体の更新と食い違うためである。一覧はこのリポジトリに書き、反映のときに、入っていないものだけが入る。入れた後の更新は、それぞれに任せる
+    - macOS の GUI アプリと Codex は、Homebrew の cask で入れる
+    - Claude Code と opencode は、それぞれの公式のインストーラで入れる
 - 言語の実行環境(node、python など)と、プロジェクトごとの道具は管理しない。版がプロジェクトによって違うので、各マシンで個別に入れる
 
 macOS でも Linux でも、反映に使うのは home-manager だけである。
@@ -66,10 +68,11 @@ Omarchy に対応させるときは、次の点を直す必要がある。
     - CLI ツール：eza、bat、tree、wget、ripgrep、fzf、jq、direnv、git、gh、lazygit、neovim、tmux、herdr、fish、luarocks、lua-language-server、shfmt、tree-sitter
     - 設定：fish(配色を含む)、nvim、tmux、git、ghostty、Cursor、herdr
     - Claude Code：グローバルの `CLAUDE.md` と、自作の skill(nvim-key、catch-up、dotfiles)
+    - 公式のインストーラで入れるツール：Claude Code、opencode
 - macOS だけ(`modules/darwin.nix`)
     - 設定：yabai、skhd、sketchybar、fish と ghostty の macOS 用の部分
     - フォント：JetBrainsMono Nerd Font(sketchybar の表示に使う)
-    - GUI アプリ(Homebrew の cask):ghostty、Cursor、herdr のアプリ版
+    - Homebrew の cask で入れるもの：ghostty、Cursor、herdr のアプリ版、Antigravity、Orca、Codex
 - マシンごと(リポジトリの管理外。各マシンで直接書く)
     - `~/.config/fish/conf.d/90-local.fish`：言語別の道具(anyenv、Go、Rust など)の PATH
     - `~/.config/fish/functions/`：そのマシンでだけ使う fish の関数
@@ -163,7 +166,7 @@ flake は Git が追跡していないファイルを読まないため、追加
 - 動いているアプリが、消えたシェルを使い続けていないこと
 - tmux、git、ghostty の設定に誤りがなく、sketchybar のスクリプトが実行できること
 - Nix で入れたフォントがあること
-- 定義した GUI アプリが入っていること
+- Homebrew で入れるもの(GUI アプリと Codex)と、公式のインストーラで入れるツール(Claude Code と opencode)が入っていること
 - Neovim で種類の違うファイルを開き、全プラグインを読み込み、キー操作(チェックボックスの切り替え、関数の選択)を試しても、エラーが出ないこと
 
 Neovim の確認には 20 秒ほどかかる。
@@ -179,21 +182,31 @@ Neovim の確認は普段の設定で起動するので、まだ取得してい�
 2. `modules/common.nix` の `home.packages` に足すか、消す。macOS だけで使うものは `modules/darwin.nix` の `home.packages` に書く
 3. 反映して、確かめる
 
-### GUI アプリを足す、消す
+### 自分で更新するアプリやツールを足す、消す
 
-1. `modules/darwin.nix` の `guiApps` に、アプリの名前(`.app` の名前)と cask の行を足すか、消す
+GUI アプリと、AI のコーディングツールのように更新の速いツールが当てはまる。
+どちらも、反映のときに「入っていなければ入れる」だけで、版は上げない。
+
+Homebrew の cask で入れるもの(macOS)は、`modules/darwin.nix` の `homebrewApps` に書く。
+
+1. 名前、入っているかを確かめる場所、cask の行を足すか、消す。GUI アプリの場所は `appPaths "<名前>.app"` と書く
 2. 反映して、確かめる
 
 Homebrew の公式以外の tap から入れるものは、cask の行を `cask "<tap>/<名前>", trusted: true` と書く。
 `trusted: true` がないと、Homebrew がその cask を読まない。
 
-反映のときに入るのは、`/Applications` にも `~/Applications` にもないアプリだけである。
-既にあるアプリは、Homebrew 以外の方法で入れたものでも、入っているとみなして触らない。
-版も上げない。
+公式のインストーラ(`curl ... | bash` の形で配られているもの)で入れるツールは、`modules/common.nix` の `installerTools` に書く。
 
-一覧から消しても、アプリは自動では消えない。
-Homebrew で入れたアプリは `brew uninstall --cask <名前>` で消す。
-Finder で消すと Homebrew に登録だけが残り、次の反映で入り直らない(そのときは `brew reinstall --cask <名前>` で入れ直す)。
+1. 名前、コマンドが置かれる場所、インストーラの URL を足すか、消す
+2. コマンドが置かれる場所が PATH に入っていなければ、`config/fish/common.fish` に足す
+3. 反映して、確かめる
+
+既に入っているものは、別の方法で入れたものでも、確かめる場所にあれば入っているとみなして触らない。
+ただし、公式のインストーラで入れるツールは、別の方法で入れた同じ名前のコマンドが PATH の手前に残っていると、`scripts/check` が `[ERROR]` にする。古いほうを消す。
+
+一覧から消しても、本体は自動では消えない。
+Homebrew で入れたものは `brew uninstall --cask <名前>` で消す。
+GUI アプリを Finder で消すと、Homebrew に登録だけが残り、次の反映で入り直らない(そのときは `brew reinstall --cask <名前>` で入れ直す)。
 
 ### 管理する設定ファイルを足す
 
@@ -349,14 +362,14 @@ nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gh -- repo cl
 - このマシンの種類(CPU と OS)が、指定した host の定義と合っているかを確かめる。合っていなければ、何も変えずに止まる
 - flake を使えるようにする
 - macOS で Homebrew がなければ入れる
-- 環境を反映する。既にあるファイルは `.bak` を付けて退避する。macOS では、足りない GUI アプリも入る
+- 環境を反映する。既にあるファイルは `.bak` を付けて退避する。GUI アプリ、Codex、Claude Code、opencode も、入っていなければ入る
 - ログインシェルを Nix の fish にする(パスワードを聞かれる)
 - 最後に `scripts/check --quick` を実行する。足りないものがあれば `[ERROR]` が出て、失敗として終わる
 
 5. 最後に表示される「残りの手作業」を行う
     - ログインシェルを切り替えた場合は、一度ログアウトして入り直す。常駐しているアプリは起動したときのログインシェルを使い続けるので、入り直さないと古いシェルでコマンドを実行しようとして失敗する
     - マシンごとの設定を `~/.config/fish/conf.d/90-local.fish` に書く
-    - Claude Code を入れる。入れた後、新しいシェルを開く
+    - Claude Code、Codex、opencode などにログインする
     - Cursor の拡張機能を入れる
     - ターミナルで `nvim` を一度起動する。プラグインが取得される。Cursor の中の Neovim はプラグインを取得しないので、Cursor より先にターミナルで起動する
     - node を入れた後に、Neovim で `:Lazy build markdown-preview.nvim` を実行する
@@ -436,9 +449,9 @@ home-manager がリンクを張ろうとした場所に、別のものがある�
 `git add` していない。
 flake は Git が追跡しているファイルしか読まない。
 
-### 反映のときに「[WARN] GUI アプリを入れられなかった」と出る
+### 反映のときに「[WARN] Homebrew が失敗した」「[WARN] … を入れられなかった」と出る
 
-Homebrew がアプリを入れられなかった。
-`scripts/check` で、足りないアプリを確かめる。
+Homebrew か、公式のインストーラが、アプリやツールを入れられなかった。
+`scripts/check` で、足りないものを確かめる。
 ネットワークにつながっていない場合と、管理者のパスワードが必要な場合がある。
 後者は、パスワードを入力できるターミナルから、もう一度 `scripts/switch` を実行する。

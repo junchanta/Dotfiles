@@ -6,26 +6,56 @@
   ...
 }:
 let
-  # Homebrew の cask で入れる GUI アプリ。アプリ自身が更新するので、Nix で版を固定しない。
-  # app は /Applications に置かれる名前、cask は Homebrew に渡す行。
-  # 反映のときに、/Applications にも ~/Applications にもないものだけを入れる。
-  # 入れ方は問わず、あれば入っているとみなす
-  guiApps = [
+  home = config.home.homeDirectory;
+
+  # GUI アプリが入っているかを確かめる場所。/Applications か ~/Applications のどちらかにあればよい
+  appPaths = app: [
+    "/Applications/${app}/Contents/Info.plist"
+    "${home}/Applications/${app}/Contents/Info.plist"
+  ];
+
+  # Homebrew で入れるもの。アプリ自身が更新するので、Nix で版を固定しない。
+  # 反映のときに、present のどこにもないものだけを入れる。入れ方は問わず、あれば入っているとみなす。
+  # line は Homebrew に渡す行。公式以外の tap のものには trusted: true を付ける(付けないと Homebrew が読まない)
+  homebrewApps = [
     {
-      app = "Ghostty.app";
-      cask = ''cask "ghostty"'';
+      name = "Ghostty";
+      present = appPaths "Ghostty.app";
+      line = ''cask "ghostty"'';
     }
     {
-      app = "Cursor.app";
-      cask = ''cask "cursor"'';
+      name = "Cursor";
+      present = appPaths "Cursor.app";
+      line = ''cask "cursor"'';
     }
     {
-      app = "Herdr.app";
-      # Homebrew の公式以外の tap のものには trusted: true を付ける(付けないと Homebrew が読まない)
-      cask = ''cask "penso/tap/herdr-gpui", trusted: true'';
+      name = "Herdr";
+      present = appPaths "Herdr.app";
+      line = ''cask "penso/tap/herdr-gpui", trusted: true'';
+    }
+    {
+      name = "Antigravity";
+      present = appPaths "Antigravity.app";
+      line = ''cask "antigravity"'';
+    }
+    {
+      name = "Orca";
+      present = appPaths "Orca.app";
+      line = ''cask "stablyai/orca/orca", trusted: true'';
+    }
+    {
+      # コマンドだけの cask。node がなくても入る
+      name = "Codex";
+      present = [ "/opt/homebrew/bin/codex" ];
+      line = ''cask "codex"'';
     }
   ];
-  guiAppsList = pkgs.writeText "gui-apps" (lib.concatMapStrings (a: "${a.app}\t${a.cask}\n") guiApps);
+  # 1 行に「名前、確かめる場所(コロン区切り)、Homebrew に渡す行」をタブ区切りで書いた一覧
+  homebrewAppsList = pkgs.writeText "homebrew-apps" (
+    lib.concatMapStrings (
+      a: "${a.name}\t${lib.concatStringsSep ":" a.present}\t${a.line}\n"
+    ) homebrewApps
+  );
 in
 {
   xdg.configFile."fish/conf.d/10-darwin.fish".source = config.lib.dotfiles.link "fish/darwin.fish";
@@ -47,34 +77,40 @@ in
   ];
 
   # scripts/check が読む一覧
-  xdg.configFile."dotfiles/gui-apps".source = guiAppsList;
+  xdg.configFile."dotfiles/homebrew-apps".source = homebrewAppsList;
 
   # 常駐ツールの登録(setupLaunchAgents)より後に行う。Homebrew が時間を取っても、常駐ツールの起動を待たせない
-  home.activation.installGuiApps = lib.hm.dag.entryAfter [ "setupLaunchAgents" ] ''
-    guiAppInstalled() {
-      [ -e "/Applications/$1/Contents/Info.plist" ] || [ -e "$HOME/Applications/$1/Contents/Info.plist" ]
+  home.activation.installHomebrewApps = lib.hm.dag.entryAfter [ "setupLaunchAgents" ] ''
+    # $1 はコロン区切りの場所。どれか 1 つでもあれば、入っている
+    homebrewAppInstalled() {
+      local IFS=:
+      local path
+      for path in $1; do
+        [ -e "$path" ] && return 0
+      done
+      return 1
     }
 
     missing=""
-    while IFS="$(printf '\t')" read -r app cask; do
-      guiAppInstalled "$app" || missing="$missing$cask
+    while IFS="$(printf '\t')" read -r name present line; do
+      homebrewAppInstalled "$present" || missing="$missing$line
     "
-    done < ${guiAppsList}
+    done < ${homebrewAppsList}
 
     if [ -n "$missing" ]; then
       if [ -x /opt/homebrew/bin/brew ]; then
-        echo "[INFO]  足りない GUI アプリを Homebrew で入れる(ここから Homebrew の出力)"
+        echo "[INFO]  足りないものを Homebrew で入れる(ここから Homebrew の出力)"
         printf '%s' "$missing" \
           | run env HOMEBREW_NO_AUTO_UPDATE=1 /opt/homebrew/bin/brew bundle install --no-upgrade --file=- \
           || echo "[WARN]  Homebrew が失敗した。反映は続ける"
         echo "[INFO]  Homebrew の出力はここまで"
-        # 入ったかどうかを、もう一度確かめる。Homebrew は、登録だけが残っているアプリを入れ直さない
-        while IFS="$(printf '\t')" read -r app cask; do
-          guiAppInstalled "$app" \
-            || echo "[WARN]  $app が入っていない($cask)。Homebrew に登録だけが残っているなら brew reinstall --cask で入れ直す"
-        done < ${guiAppsList}
+        # 入ったかどうかを、もう一度確かめる。Homebrew は、登録だけが残っているものを入れ直さない
+        while IFS="$(printf '\t')" read -r name present line; do
+          homebrewAppInstalled "$present" \
+            || echo "[WARN]  $name が入っていない($line)。Homebrew に登録だけが残っているなら brew reinstall --cask で入れ直す"
+        done < ${homebrewAppsList}
       else
-        echo "[WARN]  Homebrew がないので GUI アプリを入れていない。scripts/setup で入る"
+        echo "[WARN]  Homebrew がないので、Homebrew で入れるものを入れていない。scripts/setup で入る"
       fi
     fi
   '';
