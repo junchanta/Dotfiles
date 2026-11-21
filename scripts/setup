@@ -57,15 +57,15 @@ if ! { grep -qs '^experimental-features.*nix-command' "$nix_conf" && grep -qs '^
   echo 'experimental-features = nix-command flakes' >>"$nix_conf"
 fi
 
-# このマシンが、指定した host の定義と合っているかを確かめる。合っていないと、反映が途中で止まる
-want_user="$(nix eval --raw "$repo#homeConfigurations.$host.config.home.username")"
-want_home="$(nix eval --raw "$repo#homeConfigurations.$host.config.home.homeDirectory")"
-want_system="$(nix eval --raw "$repo#homeConfigurations.$host.pkgs.stdenv.hostPlatform.system")"
-this_system="$(nix eval --raw --impure --expr builtins.currentSystem)"
-if [ "$want_user" != "$USER" ] || [ "$want_home" != "$HOME" ] || [ "$want_system" != "$this_system" ]; then
-  echo "[ERROR] このマシンは、host「${host}」の定義と合っていない" >&2
-  echo "        定義:       ユーザー ${want_user}、ホーム ${want_home}、種類 $want_system" >&2
-  echo "        このマシン: ユーザー ${USER}、ホーム ${HOME}、種類 $this_system" >&2
+# このマシンの種類(CPU と OS)が、指定した host の定義と合っているかを確かめる。
+# 合っていないと、別の種類のマシン用のものを入れようとして、反映が途中で止まる。
+# (ユーザー名とホームの場所は、このマシンの $USER と $HOME から読み取るので、確かめる必要がない)
+want_system="$(nix eval --impure --raw "$repo#homeConfigurations.$host.pkgs.stdenv.hostPlatform.system")"
+this_system="$(nix eval --impure --raw --expr builtins.currentSystem)"
+if [ "$want_system" != "$this_system" ]; then
+  echo "[ERROR] このマシンは、host「${host}」の定義と種類が合っていない" >&2
+  echo "        定義:       $want_system" >&2
+  echo "        このマシン: $this_system" >&2
   echo "        README の「マシンを増やす」に従って、このマシン用の host を足す" >&2
   exit 1
 fi
@@ -78,7 +78,8 @@ fi
 
 # 4. 反映する。flake.lock で固定した版の home-manager を使うため、ビルドしてから実行する
 info "環境を反映する"
-generation="$(nix build "$repo#homeConfigurations.$host.activationPackage" --no-link --print-out-paths)"
+# --impure は、ユーザー名とホームの場所を $USER と $HOME から読み取るために要る(flake.nix を参照)
+generation="$(nix build --impure "$repo#homeConfigurations.$host.activationPackage" --no-link --print-out-paths)"
 HOME_MANAGER_BACKUP_EXT=bak "$generation/activate"
 
 # 5. ログインシェルを Nix の fish にする

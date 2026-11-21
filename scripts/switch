@@ -22,5 +22,6 @@ if [ -z "$host" ]; then
 fi
 
 echo "[INFO]  $host の定義を反映する"
-home-manager switch --flake "$repo#$host" "$@"
+# --impure は、ユーザー名とホームの場所を $USER と $HOME から読み取るために要る(flake.nix を参照)
+home-manager switch --impure --flake "$repo#$host" "$@"
 echo "[INFO]  反映が終わった。scripts/check で確かめる"

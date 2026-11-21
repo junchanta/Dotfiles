@@ -26,8 +26,23 @@
           pkgs = nixpkgs.legacyPackages.${system};
           modules = [
             ./hosts/${name}.nix
-            # このマシンがどの名前で反映されたかを残す。scripts/switch と scripts/check が読む
-            { xdg.configFile."dotfiles/host".text = name; }
+            {
+              # このマシンがどの名前で反映されたかを残す。scripts/switch と scripts/check が読む
+              xdg.configFile."dotfiles/host".text = name;
+
+              # ユーザー名とホームの場所は、定義に書かず、実行したマシンの $USER と $HOME から読み取る。
+              # どのユーザー名のマシンでも、同じ定義を使えるようにするためである。
+              # 環境変数を読むには --impure が要る(scripts/ のコマンドは付けている)
+              home.username = builtins.getEnv "USER";
+              home.homeDirectory =
+                let
+                  home = builtins.getEnv "HOME";
+                in
+                if home == "" then
+                  throw "$HOME を読めない。--impure を付けて実行する(scripts/switch、scripts/check、scripts/setup は付けている)"
+                else
+                  home;
+            }
           ];
         };
     in

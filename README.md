@@ -340,7 +340,7 @@ nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gh -- repo cl
 
 - Nix がなければ入れる
 - flake を使えるようにする
-- このマシンのユーザー名、ホームの場所、CPU の種類が、指定した host の定義と合っているかを確かめる。合っていなければ、何も変えずに止まる
+- このマシンの種類(CPU と OS)が、指定した host の定義と合っているかを確かめる。合っていなければ、何も変えずに止まる
 - macOS で Homebrew がなければ入れる
 - 環境を反映する。既にあるファイルは `.bak` を付けて退避する。macOS では、足りない GUI アプリも入る
 - ログインシェルを Nix の fish にする(パスワードを聞かれる)
@@ -369,12 +369,21 @@ cursor --list-extensions > ~/Work/Dotfiles/config/cursor/extensions.txt
 
 ## マシンを増やす
 
-1. `hosts/<マシン名>.nix` を作る(`hosts/macbook.nix` を写して、`imports`、`home.username`、`home.homeDirectory` を直す)
+同じ種類のマシン(たとえば Apple Silicon の Mac をもう 1 台)で、入れるものも同じなら、定義を足す必要はない。
+既にある host(`macbook`)をそのまま指定して `scripts/setup` を実行する。
+ユーザー名とホームの場所は、定義に書いておらず、実行したマシンの `$USER` と `$HOME` から読み取るためである。
+
+マシンによって入れるものを変えたいとき、または種類の違うマシンを足すときは、host を足す。
+
+1. `hosts/<マシン名>.nix` を作る(`hosts/macbook.nix` を写して、`imports` を直す)
 2. `flake.nix` の `hosts` に 1 行足す。値は Apple Silicon の Mac なら `aarch64-darwin`、x86_64 の Linux なら `x86_64-linux` である
 3. `git add` してから、そのマシンで `scripts/setup <マシン名>` を実行する
 
 マシン名には実際のホスト名を使わない。
 ホスト名に個人名が含まれることがあり、それをリポジトリに書かないためである。
+
+`$USER` と `$HOME` を読み取るために、`nix` と `home-manager` のコマンドには `--impure` を付ける必要がある。
+`scripts/` のコマンドは付けているので、手で `nix build` などを実行するときだけ気にすればよい。
 
 ## 困ったとき
 

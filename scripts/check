@@ -65,7 +65,8 @@ if [ -z "$gen" ]; then
   exit 1
 fi
 
-if built="$(nix build "$repo#homeConfigurations.$host.activationPackage" --no-link --print-out-paths 2>"$tmp/build.err")"; then
+# --impure は、ユーザー名とホームの場所を $USER と $HOME から読み取るために要る(flake.nix を参照)
+if built="$(nix build --impure "$repo#homeConfigurations.$host.activationPackage" --no-link --print-out-paths 2>"$tmp/build.err")"; then
   if [ "$built" = "$gen" ]; then
     ok "リポジトリの定義は反映済み"
   else
