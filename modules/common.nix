@@ -32,6 +32,7 @@ in
     # エディタ、ターミナル(fish は下の programs.fish が入れる)
     neovim
     tmux
+    herdr # 本体だけ。macOS のアプリ版(herdr-gpui)は Homebrew で入れる
 
     # neovim が使うもの
     # (node も必要だが、言語の実行環境はマシンごとに入れるので、ここには含めない)
