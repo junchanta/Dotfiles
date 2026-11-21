@@ -303,20 +303,22 @@ if [ "$os" = Darwin ]; then
     fi
   fi
 
-  section "Homebrew の GUI アプリ"
+  section "GUI アプリ"
 
-  brewfile="$HOME/.config/dotfiles/Brewfile"
-  if [ ! -e "$brewfile" ]; then
-    note "Homebrew で入れるものは定義されていない"
-  elif [ ! -x /opt/homebrew/bin/brew ]; then
-    ng "Homebrew が入っていない。scripts/setup $host を実行する"
-  elif HOMEBREW_NO_AUTO_UPDATE=1 /opt/homebrew/bin/brew bundle check --no-upgrade --verbose --file="$brewfile" >"$tmp/brew.out" 2>&1; then
-    ok "定義した GUI アプリはすべて入っている"
+  gui_apps="$HOME/.config/dotfiles/gui-apps"
+  if [ ! -s "$gui_apps" ]; then
+    note "GUI アプリは定義されていない"
   else
-    ng "Homebrew に登録されていない GUI アプリがある"
-    grep -v '^Satisfy' "$tmp/brew.out" >"$tmp/brew.short"
-    notes_from "$tmp/brew.short" 10
-    note "パスワードを入力できるターミナルから scripts/switch を実行する"
+    total=0
+    bad=0
+    while IFS="$(printf '\t')" read -r app _; do
+      total=$((total + 1))
+      if [ ! -d "/Applications/$app" ] && [ ! -d "$HOME/Applications/$app" ]; then
+        ng "$app が入っていない。scripts/switch で入る"
+        bad=$((bad + 1))
+      fi
+    done <"$gui_apps"
+    [ "$bad" -eq 0 ] && ok "定義した $total 個の GUI アプリがすべて入っている"
   fi
 fi
 

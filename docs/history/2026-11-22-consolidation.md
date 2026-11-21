@@ -41,9 +41,13 @@
 
 ## GUI アプリの入れ方
 
-- `modules/darwin.nix` が Brewfile を `~/.config/dotfiles/Brewfile` に置く
-- 反映のときに `brew bundle check` を行い、足りないときだけ `brew bundle install --no-upgrade` を呼ぶ
+- `modules/darwin.nix` に、アプリの名前と cask の行の組を書く
+- 反映のときに、`/Applications` にないアプリだけを `brew bundle install --no-upgrade` で入れる
     - 失敗しても反映は止めず、警告を出す。足りないものは `scripts/check` が ✗ で示す
+- 「入っているか」は、Homebrew に登録されているかではなく、`/Applications` にあるかで決める
+    - 最初は Homebrew への登録で判定し、手で入れてあった Cursor を登録しようとした
+    - 登録にはアプリの中身の書き換えが要り、macOS が動いているアプリの書き換えを管理者にも許さなかった
+    - 目的は「アプリが入っていること」なので、入れ方を問わない判定に改めた
 - Homebrew 7 は、公式以外の tap のものを既定で読まない
     - Brewfile の該当行に `trusted: true` を付けると、その cask だけが信頼される
 - 対象は、管理している設定が前提にするアプリに絞った
@@ -88,8 +92,6 @@
 
 - yabai、skhd、sketchybar の本体を Nix で入れる
     - 切り替えると macOS のアクセシビリティの許可をやり直す必要があるので、手元で操作できるときに行う
-- この Mac の Cursor を Homebrew に登録する
-    - 手で入れたものなので、登録に管理者のパスワードが 1 回要る
 - ghostty の設定が指定している Fira Code は、この Mac に入っていない
     - 今は ghostty の内蔵フォントで表示されている。入れるか、指定を消すかを決める
 - `scripts/setup` は、まっさらなマシンではまだ実行していない

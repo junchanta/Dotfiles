@@ -6,7 +6,25 @@
   ...
 }:
 let
-  brewfile = "${config.xdg.configHome}/dotfiles/Brewfile";
+  # Homebrew の cask で入れる GUI アプリ。アプリ自身が更新するので、Nix で版を固定しない。
+  # app は /Applications に置かれる名前、cask は Homebrew に渡す行。
+  # 反映のときに、/Applications にないものだけを入れる。入れ方は問わず、あれば入っているとみなす
+  guiApps = [
+    {
+      app = "Ghostty.app";
+      cask = ''cask "ghostty"'';
+    }
+    {
+      app = "Cursor.app";
+      cask = ''cask "cursor"'';
+    }
+    {
+      app = "Herdr.app";
+      # Homebrew の公式以外の tap のものには trusted: true を付ける(付けないと Homebrew が読まない)
+      cask = ''cask "penso/tap/herdr-gpui", trusted: true'';
+    }
+  ];
+  guiAppsList = pkgs.writeText "gui-apps" (lib.concatMapStrings (a: "${a.app}\t${a.cask}\n") guiApps);
 in
 {
   xdg.configFile."fish/conf.d/10-darwin.fish".source = config.lib.dotfiles.link "fish/darwin.fish";
@@ -23,23 +41,25 @@ in
     pkgs.nerd-fonts.jetbrains-mono
   ];
 
-  # GUI アプリは Homebrew の cask で入れる。アプリ自身が更新するので、Nix で版を固定しない。
-  # 何を入れるかはここに書き、反映のときに足りないものだけが入る(入っているものの版は上げない)。
-  # Homebrew の公式以外の tap から入れるものには trusted: true を付ける(付けないと Homebrew が読まない)
-  xdg.configFile."dotfiles/Brewfile".text = ''
-    tap "penso/tap"
-    cask "ghostty"
-    cask "cursor"
-    cask "penso/tap/herdr-gpui", trusted: true
-  '';
+  # scripts/check が読む一覧
+  xdg.configFile."dotfiles/gui-apps".source = guiAppsList;
 
   # 常駐ツールの登録(setupLaunchAgents)より後に行う。Homebrew が時間を取っても、常駐ツールの起動を待たせない
-  home.activation.installHomebrewApps = lib.hm.dag.entryAfter [ "setupLaunchAgents" ] ''
-    if [ ! -x /opt/homebrew/bin/brew ]; then
-      warnEcho "Homebrew がないので GUI アプリを入れていない。scripts/setup で入る"
-    elif ! HOMEBREW_NO_AUTO_UPDATE=1 /opt/homebrew/bin/brew bundle check --no-upgrade --file=${lib.escapeShellArg brewfile} >/dev/null 2>&1; then
-      run env HOMEBREW_NO_AUTO_UPDATE=1 /opt/homebrew/bin/brew bundle install --no-upgrade --file=${lib.escapeShellArg brewfile} \
-        || warnEcho "GUI アプリを入れられなかった。scripts/check で足りないものを確かめる"
+  home.activation.installGuiApps = lib.hm.dag.entryAfter [ "setupLaunchAgents" ] ''
+    missing="$(mktemp)"
+    while IFS="$(printf '\t')" read -r app cask; do
+      if [ ! -d "/Applications/$app" ] && [ ! -d "$HOME/Applications/$app" ]; then
+        printf '%s\n' "$cask" >> "$missing"
+      fi
+    done < ${guiAppsList}
+    if [ -s "$missing" ]; then
+      if [ -x /opt/homebrew/bin/brew ]; then
+        run env HOMEBREW_NO_AUTO_UPDATE=1 /opt/homebrew/bin/brew bundle install --no-upgrade --file="$missing" \
+          || warnEcho "GUI アプリを入れられなかった。scripts/check で足りないものを確かめる"
+      else
+        warnEcho "Homebrew がないので GUI アプリを入れていない。scripts/setup で入る"
+      fi
     fi
+    rm -f "$missing"
   '';
 }
