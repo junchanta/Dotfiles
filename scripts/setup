@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# 新しいマシンを、このリポジトリの定義どおりにセットアップする。
+# 済んでいる手順は飛ばすので、何度実行してもよい。
+#
+# 使い方: scripts/setup <host>
+#   <host> は hosts/ のファイル名から .nix を除いたもの(例: macbook)
+
+set -eu
+
+repo="$(cd "$(dirname "$0")/.." && pwd -P)"
+host="${1:-}"
+os="$(uname -s)"
+
+step() { printf '\n==> %s\n' "$1"; }
+die() {
+  printf '%s\n' "$1" >&2
+  exit 1
+}
+
+if [ -z "$host" ] || [ ! -f "$repo/hosts/$host.nix" ]; then
+  echo "使い方: scripts/setup <host>" >&2
+  echo "指定できる host:" >&2
+  for f in "$repo"/hosts/*.nix; do
+    echo "  $(basename "$f" .nix)" >&2
+  done
+  exit 1
+fi
+
+[ "$repo" = "$(cd "$HOME/Work/Dotfiles" 2>/dev/null && pwd -P)" ] ||
+  die "リポジトリは ~/Work/Dotfiles に置く(リンクの張り先がこの場所に固定されているため)。現在の場所: $repo"
+
+# 1. Nix
+export PATH="$HOME/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH"
+if ! command -v nix >/dev/null 2>&1; then
+  step "Nix を入れる"
+  if [ "$os" = Darwin ]; then
+    curl -L https://nixos.org/nix/install | sh
+  else
+    curl -L https://nixos.org/nix/install | sh -s -- --daemon
+  fi
+  command -v nix >/dev/null 2>&1 ||
+    die "Nix を入れた。新しいターミナルを開いて、もう一度 scripts/setup $host を実行する"
+fi
+
+# 2. flake を使えるようにする
+nix_conf="$HOME/.config/nix/nix.conf"
+if ! grep -qs '^experimental-features.*flakes' "$nix_conf"; then
+  step "flake を使えるようにする"
+  mkdir -p "$(dirname "$nix_conf")"
+  echo 'experimental-features = nix-command flakes' >>"$nix_conf"
+fi
+
+# 3. Homebrew(macOS の GUI アプリを入れるのに使う)
+if [ "$os" = Darwin ] && [ ! -x /opt/homebrew/bin/brew ]; then
+  step "Homebrew を入れる"
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
+
+# 4. 反映する。flake.lock で固定した版の home-manager を使うため、ビルドしてから実行する
+step "環境を反映する"
+generation="$(nix build "$repo#homeConfigurations.$host.activationPackage" --no-link --print-out-paths)"
+HOME_MANAGER_BACKUP_EXT=bak "$generation/activate"
+
+# 5. ログインシェルを Nix の fish にする
+fish="$HOME/.nix-profile/bin/fish"
+if [ "$os" = Darwin ]; then
+  login_shell="$(dscl . -read "/Users/$USER" UserShell 2>/dev/null | awk '{print $2}')"
+else
+  login_shell="$(getent passwd "$USER" | cut -d: -f7)"
+fi
+if [ "$login_shell" != "$fish" ]; then
+  step "ログインシェルを fish にする(パスワードを聞かれる)"
+  grep -qxF "$fish" /etc/shells || echo "$fish" | sudo tee -a /etc/shells >/dev/null
+  chsh -s "$fish"
+  relogin=1
+else
+  relogin=0
+fi
+
+# 6. 残りの手作業
+step "セットアップが終わった"
+echo "残りの手作業:"
+[ "$relogin" -eq 1 ] && echo "  - 一度ログアウトして入り直す(常駐しているアプリに新しいログインシェルを使わせるため)"
+echo "  - 言語別の道具など、このマシンだけの設定を ~/.config/fish/conf.d/90-local.fish に書く"
+echo "  - Claude Code を入れる: curl -fsSL https://claude.ai/install.sh | bash"
+echo "  - Cursor の拡張機能を入れる: cat $repo/config/cursor/extensions.txt | xargs -L1 cursor --install-extension"
+echo "最後に scripts/check を実行して、問題がないことを確かめる。"

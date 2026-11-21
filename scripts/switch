@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# リポジトリの定義を、このマシンに反映する。
+#
+# 使い方: scripts/switch [home-manager switch に渡す追加の引数]
+#   例: scripts/switch -b bak   既にあるファイルを .bak を付けて退避しながら反映する
+
+set -eu
+export PATH="$HOME/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH"
+
+repo="$(cd "$(dirname "$0")/.." && pwd -P)"
+host="$(cat "$HOME/.config/dotfiles/host" 2>/dev/null || true)"
+
+if [ -z "$host" ]; then
+  echo "このマシンにはまだ反映されていない。初回は scripts/setup <host> を実行する" >&2
+  exit 1
+fi
+
+exec home-manager switch --flake "$repo#$host" "$@"

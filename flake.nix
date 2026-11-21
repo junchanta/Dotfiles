@@ -14,21 +14,24 @@
   outputs =
     { nixpkgs, home-manager, ... }:
     let
-      # マシン 1 台分の設定を作る。system はそのマシンの CPU と OS の組
+      # マシンの一覧。名前は hosts/<名前>.nix と対応し、値はそのマシンの CPU と OS の組。
+      # マシンを増やすときは、hosts/ に 1 ファイル足してここに 1 行足す
+      hosts = {
+        macbook = "aarch64-darwin";
+      };
+
       mkHome =
-        { system, modules }:
+        name: system:
         home-manager.lib.homeManagerConfiguration {
           pkgs = nixpkgs.legacyPackages.${system};
-          inherit modules;
+          modules = [
+            ./hosts/${name}.nix
+            # このマシンがどの名前で反映されたかを残す。scripts/switch と scripts/check が読む
+            { xdg.configFile."dotfiles/host".text = name; }
+          ];
         };
     in
     {
-      # マシンを増やすときは、hosts/ に 1 ファイル足してここに 1 行足す
-      homeConfigurations = {
-        macbook = mkHome {
-          system = "aarch64-darwin";
-          modules = [ ./hosts/macbook.nix ];
-        };
-      };
+      homeConfigurations = nixpkgs.lib.mapAttrs mkHome hosts;
     };
 }

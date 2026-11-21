@@ -1,6 +1,6 @@
 ---
 name: dotfiles
-description: このマシンの開発環境の設定（fish、nvim、tmux、git、ghostty、Cursor、herdr、yabai、skhd、sketchybar、Claude Code の CLAUDE.md と共有 skill）や、Nix で入れる CLI ツールを変更するときに使う。~/Work/Dotfiles（Nix + home-manager）を編集し、反映、確認、コミットまでを同じ手順で行う。「tmux のキーを変えて」「fish にエイリアスを足して」「〇〇を入れて」「この設定を dotfiles で管理して」「ghostty の設定を直して」「dotfiles を更新して」「/dotfiles」と言われた場合に、どのディレクトリで作業中でも使う。言語の実行環境（node、python など）や GUI アプリは対象外（各マシンで個別に入れる）。
+description: このマシンの開発環境の設定（fish、nvim、tmux、git、ghostty、Cursor、herdr、yabai、skhd、sketchybar、Claude Code の CLAUDE.md と共有 skill）や、入れるツール・GUI アプリ・フォントを変更するときに使う。~/Work/Dotfiles（Nix + home-manager）を編集し、反映、確認、コミットまでを同じ手順で行う。「tmux のキーを変えて」「fish にエイリアスを足して」「〇〇を入れて」「この設定を dotfiles で管理して」「ghostty の設定を直して」「dotfiles を更新して」「ツールの版を上げて」「/dotfiles」と言われた場合に、どのディレクトリで作業中でも使う。言語の実行環境（node、python など）は対象外（各マシンで個別に入れる）。
 ---
 
 # dotfiles を変更する
@@ -11,43 +11,45 @@ description: このマシンの開発環境の設定（fish、nvim、tmux、git�
 ## 最初に読むもの
 
 `~/Work/Dotfiles/README.md` を読む。
-仕組み、何がどこで管理されているか、各操作の手順は README が正であり、この skill は作業の進め方だけを定める。
+方針(何を Nix で入れ、何を Homebrew で入れるか)、何がどこで管理されているか、各操作の手順、変更の進め方は README が正であり、この skill は作業の進め方だけを定める。
 README と食い違ったら README に従う。
+README の方針に当てはまらない入れ方(Brewfile を別に置く、手で `brew install` するなど)を提案しない。
 
 ## 進め方
 
-1. **置き場所を決める。** README の「何がどこで管理されているか」に従う。
+1. **置き場所を決める。** README の「方針」と「何がどこで管理されているか」に従う。
     - 全マシン共通：`config/` と `modules/common.nix`
     - macOS だけ：`modules/darwin.nix`
-    - そのマシンだけ（言語別の道具の PATH など）：リポジトリには入れず、`~/.config/fish/conf.d/90-local.fish` などに書く。この場合は 4 以降を行わない
-2. **作業前の状態を確かめる。** `git -C ~/Work/Dotfiles status` で未コミットの変更を確認する。自分の作業と関係ない変更があれば、混ぜずにユーザーに伝える。
-3. **編集する。**
-    - 設定の中身：`config/<アプリ名>/` のファイル
-    - ツールの追加・削除、新しい設定ファイルの管理：`modules/*.nix`
-    - 生成ファイル（`~/.config/fish/config.fish` など）は編集しない
-4. **新しいファイルを `git add` する。** flake は Git が追跡していないファイルを読まない。
-5. **反映する。** `config/` の中身だけの変更なら不要で、アプリの読み直しだけ伝える（README の「設定ファイルを変える」）。`modules/`、`hosts/`、`flake.nix`、`flake.lock` を変えたときは、先にビルドで誤りを確かめてから反映する。
+    - そのマシンだけ（言語別の道具の PATH など）：リポジトリには入れず、`~/.config/fish/conf.d/90-local.fish` などに書く。この場合は 3 以降を行わない
+2. **作業前の状態を確かめる。** `git -C ~/Work/Dotfiles status` で、ブランチと未コミットの変更を確認する。自分の作業と関係ない変更があれば、混ぜずにユーザーに伝える。
+3. **変更の大きさを見分ける。** README の「変更の進め方」に従う。
+    - 設定の中身（`config/`）だけ：そのまま編集してよい
+    - 仕組み（`modules/`、`hosts/`、`flake.nix`、`flake.lock`、`scripts/`）：作業ブランチを切ってから編集する
+    - ツールの版が変わる変更（`nix flake update`、プラグインのブランチ変更など）は、ユーザーが頼んだときだけ行い、何の版がどう変わるかを反映の前に伝える
+4. **編集する。** 生成ファイル（`~/.config/fish/config.fish` など）は編集しない。新しいファイルは `git add` する（flake は Git が追跡していないファイルを読まない）。
+5. **反映する。** `config/` の中身だけの変更なら不要で、アプリの読み直しだけ行う（README の「設定ファイルを変える」）。それ以外は次を実行する。
 
     ```sh
-    cd ~/Work/Dotfiles
-    nix build .#homeConfigurations.<host>.activationPackage --no-link
-    home-manager switch --flake ~/Work/Dotfiles#<host>
+    ~/Work/Dotfiles/scripts/switch
     ```
 
-    `<host>` は `hosts/` のファイル名のうち、このマシンのものである。
-    `hosts/` にこのマシンらしいものが 1 つに決まらないときは、ユーザーに聞く。
     「Existing file ... is in the way」で止まったら、README の「困ったとき」に従う。
     `-b bak` は、退避されるファイルが skill のディレクトリなど、残ると害があるものでないことを確かめてから使う。
-6. **確かめる。**
-    - リンクを足した場合：`path resolve <配置先>` が `~/Work/Dotfiles/config/` の中を指し、`test -e <配置先>` が成り立つこと
-    - ツールを足した場合：新しいシェルで `type -p <コマンド>` が `~/.nix-profile/bin` を指すこと
-    - 設定の中身を変えた場合：そのアプリが設定を読めること（例：`tmux source-file ~/.tmux.conf`、`ghostty +validate-config`、`nvim --headless +qa`）
-7. **コミットする。** 1 つの目的ごとに 1 コミットにし、メッセージは日本語で「何を、なぜ」を書く。push はユーザーに頼まれたときだけ行う。
-8. **報告する。** 何を変えたか、反映済みか、ユーザーがすること（アプリの再起動、新しいシェルを開くなど）を数行で伝える。
+6. **確かめる。** 変更した機能を、実際の使い方で動かす（nvim ならその種類のファイルを開く、キー操作ならそのキーを使うプロセスの環境で確かめる）。そのうえで全体を確かめる。
+
+    ```sh
+    ~/Work/Dotfiles/scripts/check
+    ```
+
+    ✗ が 1 つでも残っている状態で、コミットや完了の報告をしない。自分の変更と無関係な ✗ なら、その旨をユーザーに伝える。
+7. **仕組みの変更はレビューを受ける。** 自分の結論を渡さず、差分を渡して Codex などにレビューさせる。指摘を直したら、もう一度 `scripts/check` を通す。
+8. **コミットする。** 1 つの目的ごとに 1 コミットにし、メッセージは日本語で「何を、なぜ」を書く。版を上げる変更は単独のコミットにする。作業ブランチは、確認とレビューが済んでから master に統合する。
+9. **push はユーザーに頼まれたときだけ行う。** 頼まれた時点で、確かめていない部分や ✗ が残っていれば、push の前にそれを伝える。
+10. **報告する。** 何を変えたか、反映済みか、確かめた範囲と確かめていない範囲、ユーザーがすること（アプリの再起動、新しいシェルを開くなど）を数行で伝える。
 
 ## やらないこと
 
 - ホーム側のリンク先を直接編集したり、リンクを普通のファイルで置き換えたりしない
 - 認証情報（トークン、`gh` の `hosts.yml` など）をリポジトリに入れない
 - 会社のリポジトリ由来の skill や、アプリ（herdr、Orca など）が入れた skill を dotfiles に取り込まない
-- `nix flake update` は、ユーザーが版の更新を頼んだときだけ行う
+- 常駐ツール（yabai、skhd など）やログインシェルを入れ替える変更を、ユーザーが手元で操作できると確かめずに反映しない（macOS の許可のやり直しや、アプリの再起動が要るため）

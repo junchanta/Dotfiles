@@ -1,7 +1,7 @@
 # Dotfiles
 
 複数のマシン(macOS と Omarchy)で同じ開発環境を使うための設定リポジトリである。
-CLI ツールは Nix で入れ、設定ファイルは home-manager がホームディレクトリへリンクする。
+新しいマシンでは、このリポジトリを clone して `scripts/setup` を実行すると、同じ環境が立ち上がる。
 
 この README は運用の手順書であり、常に現状に合わせて更新する。
 なぜこの構成にしたかの経緯は [docs/history/](docs/history/) にある。
@@ -9,8 +9,21 @@ CLI ツールは Nix で入れ、設定ファイルは home-manager がホーム
 ## 前提知識
 
 - **Nix**：パッケージマネージャである。入れたものはすべて `/nix/store` に置かれ、設定ファイルに書いた内容から環境を組み立て直せる。
-- **home-manager**：Nix の上で動く道具で、ユーザーのホームディレクトリ(CLI ツールとドットファイル)を管理する。
+- **home-manager**：Nix の上で動く道具で、ユーザーのホームディレクトリ(ツール、設定ファイル、フォント、常駐ツール)を管理する。
 - **flake**：Nix の設定リポジトリの形式である。`flake.nix` が依存と出力を定め、`flake.lock` が依存の版を固定する。
+- **Homebrew の cask**：macOS の GUI アプリを入れる仕組みである。
+
+## 方針
+
+何を入れるかは、すべてこのリポジトリに書く。
+入れる手段は次のように決めている。
+
+- 基本は Nix で入れる。CLI ツールとフォントが当てはまる
+- macOS の GUI アプリだけは Homebrew の cask で入れる。アプリ自身が新しい版に更新するので、Nix で版を固定すると食い違うためである。cask の一覧もこのリポジトリに書き、反映のときに足りないものが入る
+- 言語の実行環境(node、python など)と、プロジェクトごとの道具は管理しない。版がプロジェクトによって違うので、各マシンで個別に入れる
+
+macOS でも Linux でも、反映に使うのは home-manager だけである。
+nix-darwin は使っていない。
 
 ## 全体像
 
@@ -18,10 +31,14 @@ CLI ツールは Nix で入れ、設定ファイルは home-manager がホーム
 flake.nix        依存(nixpkgs、home-manager)と、マシンの一覧
 flake.lock       依存の版の固定
 hosts/           マシンごとの設定。使う modules を選ぶ
-modules/         範囲ごとの設定。入れるツールと、config/ のどれをどこへリンクするか
+modules/         範囲ごとの設定。入れるものと、config/ のどれをどこへリンクするか
   common.nix     全マシン共通
   darwin.nix     macOS だけ
 config/          設定ファイルの実体。アプリ名で並べる
+scripts/         運用のコマンド
+  setup          新しいマシンをセットアップする
+  switch         リポジトリの定義をこのマシンに反映する
+  check          このマシンが定義どおりに動いているかを確かめる
 docs/history/    設計の経緯
 ```
 
@@ -30,10 +47,10 @@ docs/history/    設計の経緯
 1. `flake.nix` がマシン(`macbook` など)を定義し、`hosts/macbook.nix` を読む
 2. `hosts/macbook.nix` が、使う範囲(`common.nix`、`darwin.nix`)を選ぶ
 3. 各 `modules/*.nix` が「`config/` のこのファイルを、ホームのこの場所にリンクする」と書く
-4. `home-manager switch` を実行すると、ホームにリンクが張られる
+4. `scripts/switch` を実行すると、ホームにリンクが張られ、ツールが入る
 
 リンクの先はリポジトリのファイルそのものである。
-そのため `config/` のファイルを編集すると、`home-manager switch` を実行しなくても、すぐに反映される。
+そのため `config/` のファイルを編集すると、`scripts/switch` を実行しなくても、すぐに反映される。
 
 マシンは現在 `macbook`(macOS)だけである。
 Omarchy 用の `hosts/` と `modules/omarchy.nix` はまだない。
@@ -46,19 +63,21 @@ Omarchy に対応させるときは、次の点を直す必要がある。
 ## 何がどこで管理されているか
 
 - 全マシン共通(`modules/common.nix`)
-    - CLI ツール：eza、bat、tree、wget、ripgrep、fzf、jq、direnv、git、gh、lazygit、neovim、tmux、fish、luarocks、lua-language-server、shfmt
+    - CLI ツール：eza、bat、tree、wget、ripgrep、fzf、jq、direnv、git、gh、lazygit、neovim、tmux、herdr、fish、luarocks、lua-language-server、shfmt、tree-sitter
     - 設定：fish、nvim、tmux、git、ghostty、Cursor、herdr
     - Claude Code：グローバルの `CLAUDE.md` と、自作の skill(nvim-key、catch-up、dotfiles)
 - macOS だけ(`modules/darwin.nix`)
     - 設定：yabai、skhd、sketchybar、fish と ghostty の macOS 用の部分
+    - フォント：JetBrainsMono Nerd Font(sketchybar の表示に使う)
+    - GUI アプリ(Homebrew の cask):ghostty、Cursor、herdr のアプリ版
 - マシンごと(リポジトリの管理外。各マシンで直接書く)
     - `~/.config/fish/conf.d/90-local.fish`：言語別の道具(anyenv、Go、Rust など)の PATH
     - `~/.config/fish/functions/`：そのマシンでだけ使う fish の関数
     - `~/.config/herdr/config-gpui.local.toml`、`~/.config/herdr/hws.json`：herdr の画面設定とワークスペース定義
     - `~/.claude/skills/` のほかの skill：会社のリポジトリ由来のものや、アプリ(herdr、Orca)が入れたもの
 
-GUI アプリと、言語の実行環境(node、python など)は Nix で管理していない。
-各マシンで個別に入れる。
+yabai、skhd、sketchybar の本体は、まだこのリポジトリで管理していない。
+現在は Homebrew で手で入れたものが動いており、Nix への移行を準備している。
 
 ### fish の設定の読み込み順
 
@@ -79,17 +98,22 @@ fish_add_path --path --move <ディレクトリ>
 付けないと、既に PATH にある場合は位置が変わらず、Nix のほうが使われることがある。
 
 `~/.config/fish/config.fish` は home-manager が生成するファイルである。
-編集しても次の `home-manager switch` で上書きされるので、触らない。
+編集しても次の反映で上書きされるので、触らない。
 
 ## 日常の操作
 
 以降のコマンドは、リポジトリが `~/Work/Dotfiles` にある前提である。
 リンクの張り先がこの場所に固定されているため、別の場所には置けない。
 
+使うコマンドは 2 つである。
+
+- `scripts/switch`：リポジトリの定義をこのマシンに反映する
+- `scripts/check`：このマシンが定義どおりに動いているかを確かめる。何も変更しない
+
 ### 設定ファイルを変える
 
 `config/` の中のファイルを直接編集する。
-`home-manager switch` は不要である。
+`scripts/switch` は不要である。
 
 アプリが設定を読み直すまでは反映されない。
 
@@ -105,31 +129,54 @@ Cursor のように、アプリの画面から設定を変えた場合も、`con
 
 ### 反映する
 
-`modules/`、`hosts/`、`flake.nix` を変えたときは、次のコマンドで反映する。
+`modules/`、`hosts/`、`flake.nix`、`flake.lock` を変えたときは、反映する。
 
 ```sh
-home-manager switch --flake ~/Work/Dotfiles#macbook
+~/Work/Dotfiles/scripts/switch
 ```
 
 新しく作ったファイルは、実行の前に `git add` しておく。
 flake は Git が追跡していないファイルを読まないため、追加しないと「ファイルがない」というエラーになる。
 
+### 確かめる
+
+変更した後と、何かがおかしいときは、確かめる。
+
+```sh
+~/Work/Dotfiles/scripts/check
+```
+
+次のことを順に確かめ、問題があれば ✗ と直し方を出す。
+
+- リポジトリの定義が、このマシンに反映済みであること
+- 設定ファイルのリンクが、切れたり別のファイルに置き換わったりしていないこと
+- 新しいシェルで、Nix で入れたコマンドが Nix のものに解決されること(PATH の順序の誤りを見つける)
+- Homebrew に同じコマンドが重複して入っていないこと
+- ログインシェルが Nix の fish であること
+- tmux、git、ghostty の設定に誤りがないこと
+- 定義した GUI アプリが入っていること
+- Neovim で種類の違うファイルを開き、全プラグインを読み込んでも、エラーが出ないこと
+
+Neovim の確認には 15 秒ほどかかる。
+`scripts/check --quick` で省ける。
+
 ### CLI ツールを足す、消す
 
 1. パッケージ名を調べる(`nix search nixpkgs <名前>` か https://search.nixos.org/packages)
-2. `modules/common.nix` の `home.packages` に足すか、消す
-3. 反映する
+2. `modules/common.nix` の `home.packages` に足すか、消す。macOS だけで使うものは `modules/darwin.nix` の `home.packages` に書く
+3. 反映して、確かめる
 
-macOS だけで使うツールは `modules/darwin.nix` に足す。
-`darwin.nix` はまだ `pkgs` を受け取っていないので、引数にも足す。
+### GUI アプリを足す、消す
 
-```nix
-{ config, pkgs, ... }:
-{
-  home.packages = with pkgs; [ <パッケージ名> ];
-  # 既存の設定はそのまま
-}
-```
+1. `modules/darwin.nix` の Brewfile に `cask "<名前>"` の行を足すか、消す
+2. 反映して、確かめる
+
+Homebrew の公式以外の tap から入れるものは、`cask "<tap>/<名前>", trusted: true` と書く。
+`trusted: true` がないと、Homebrew がその cask を読まない。
+
+反映のときに入るのは、足りないものだけである。
+既に入っているアプリの版は上げない。
+行を消しても、アプリは自動では消えないので、`brew uninstall --cask <名前>` で消す。
 
 ### 管理する設定ファイルを足す
 
@@ -145,27 +192,27 @@ home.file.".<名前>".source = config.lib.dotfiles.link "<アプリ名>/<名前>
 ```
 
 3. 反映する(元のファイルが残っていると止まる。[困ったとき](#困ったとき)を参照)
-4. リンクの最終的な行き先が `~/Work/Dotfiles/config/` の中で、実在することを確かめる
+4. 確かめる
 
-```fish
-path resolve ~/.config/<アプリ名>/config   # ~/Work/Dotfiles/config/... と出ればよい
-test -e ~/.config/<アプリ名>/config; and echo ok
-```
-
-`config.lib.dotfiles.link` に書くパスを間違えても、エラーにはならず、切れたリンクができるだけである。
-4 の確認はそのためである。
-リンクは Nix のストアを経由するので、`ls -l` では最終的な行き先が分からない。
+`config.lib.dotfiles.link` に書くパスを間違えても、反映はエラーにならず、切れたリンクができるだけである。
+`scripts/check` はこれを見つける。
 
 ### ツールの版を上げる
 
 ```sh
 cd ~/Work/Dotfiles
 nix flake update
-home-manager switch --flake ~/Work/Dotfiles#macbook
+scripts/switch
+scripts/check
 ```
 
-動作に問題がなければ、更新された `flake.lock` をコミットする。
+`scripts/check` が通ったら、更新された `flake.lock` を単独のコミットにする。
+ほかの変更と混ぜないのは、版を上げた結果として何かが壊れたときに、そのコミットだけを戻せるようにするためである。
 ほかのマシンは、この `flake.lock` を取り込んで反映すると同じ版になる。
+
+版が上がると、設定がそのままでは動かなくなることがある。
+2026 年 11 月には、Neovim が 0.11 から 0.12 に上がって 3 つのプラグインの設定が壊れた。
+`scripts/check` の Neovim の確認は、これを反映の直後に見つけるためのものである。
 
 ### ほかのマシンの変更を取り込む
 
@@ -175,12 +222,13 @@ home-manager switch --flake ~/Work/Dotfiles#macbook
 cd ~/Work/Dotfiles
 git status                  # 未コミットの変更があれば、先にコミットする
 git pull --ff-only
-home-manager switch --flake ~/Work/Dotfiles#macbook
+scripts/switch
+scripts/check
 ```
 
 `config/` だけの変更なら、pull した時点で反映される。
-`modules/`、`hosts/`、`flake.nix`、`flake.lock` が変わっていた場合は、switch しないとツールやリンクが古いままになる。
-迷ったら switch してよい。変更がなければ何も起きない。
+`modules/`、`hosts/`、`flake.nix`、`flake.lock` が変わっていた場合は、反映しないとツールやリンクが古いままになる。
+迷ったら反映してよい。変更がなければ何も起きない。
 
 ### 元に戻す
 
@@ -190,11 +238,11 @@ home-manager switch --flake ~/Work/Dotfiles#macbook
 ```sh
 cd ~/Work/Dotfiles
 git revert <戻したいコミット>
-home-manager switch --flake ~/Work/Dotfiles#macbook
+scripts/switch
 ```
 
-switch 自体が失敗して反映できないときだけ、home-manager の世代を直接戻す。
-世代は switch のたびに作られる。
+反映自体が失敗するときだけ、home-manager の世代を直接戻す。
+世代は反映のたびに作られる。
 一覧を見て、戻したい世代のパスにある `activate` を実行する。
 
 ```sh
@@ -205,8 +253,8 @@ home-manager generations
 
 世代を戻しても、リポジトリの中身は戻らない。
 `config/` のファイルを動かした後なら、戻した世代のリンクが存在しないファイルを指すことがある。
-また、次の switch でリポジトリの状態に戻る。
-落ち着いたら、Git でも戻してから switch し直す。
+また、次の反映でリポジトリの状態に戻る。
+落ち着いたら、Git でも戻してから反映し直す。
 
 ### 古い世代を消す
 
@@ -219,54 +267,53 @@ nix-collect-garbage --delete-older-than 30d
 home-manager の世代と、ツールが入っているプロファイルの世代の両方が対象になる。
 消した世代には戻せなくなる。
 
+## 変更の進め方
+
+変更の大きさによって、通す手順を変える。
+
+- 設定の中身(`config/`)だけを変える場合
+    1. 編集し、そのアプリで動作を確かめる
+    2. `scripts/check` を通す
+    3. コミットする
+- 仕組み(`modules/`、`hosts/`、`flake.nix`、`flake.lock`、`scripts/`)を変える場合
+    1. 作業ブランチを切る
+    2. 変更し、`scripts/switch` で反映する
+    3. `scripts/check` を通す
+    4. 変更した本人とは別の目でレビューする(Claude Code で作業しているなら、Codex のレビューか `/code-review`)
+    5. 指摘を直し、もう一度 `scripts/check` を通す
+    6. master に統合する
+
+push するのは、`scripts/check` が通った master だけである。
+途中の状態を master に入れない。
+
 ## 新しいマシンのセットアップ
 
-1. Nix を入れる
+1. このリポジトリを `~/Work/Dotfiles` に clone する
+2. セットアップを実行する(`<host>` は `hosts/` のファイル名から `.nix` を除いたもの)
 
 ```sh
-# macOS
-curl -L https://nixos.org/nix/install | sh
-# Linux
-curl -L https://nixos.org/nix/install | sh -s -- --daemon
+~/Work/Dotfiles/scripts/setup <host>
 ```
 
-終わったら新しいターミナルを開き、`nix --version` が動くことを確かめる。
+`scripts/setup` は次のことを行う。済んでいるものは飛ばすので、途中で止まったらもう一度実行すればよい。
 
-2. flake を使えるようにする
+- Nix がなければ入れる
+- flake を使えるようにする
+- macOS で Homebrew がなければ入れる
+- 環境を反映する。既にあるファイルは `.bak` を付けて退避する
+- ログインシェルを Nix の fish にする(パスワードを聞かれる)
 
-```sh
-mkdir -p ~/.config/nix
-echo 'experimental-features = nix-command flakes' >> ~/.config/nix/nix.conf
-```
+3. 最後に表示される「残りの手作業」を行う
+    - ログインシェルを切り替えた場合は、一度ログアウトして入り直す。常駐しているアプリは起動したときのログインシェルを使い続けるので、入り直さないと古いシェルでコマンドを実行しようとして失敗する
+    - マシンごとの設定を `~/.config/fish/conf.d/90-local.fish` に書く
+    - Claude Code を入れる
+    - Cursor の拡張機能を入れる
+4. `scripts/check` を通す
 
-3. このリポジトリを `~/Work/Dotfiles` に clone する
-4. 環境を適用する(`<host>` は `hosts/` のファイル名)
+`scripts/setup` は、設定済みの Mac で何度実行しても同じ結果になることだけを確かめてある。
+まっさらなマシンでは、まだ実行していない。
 
-```sh
-nix run home-manager -- switch --flake ~/Work/Dotfiles#<host> -b bak
-```
-
-`-b bak` を付けると、既にあるファイルは `.bak` を付けて退避される。
-中身を確かめて、不要なら消す。
-
-5. ログインシェルを Nix の fish にする(sudo のパスワードを聞かれる)
-
-```sh
-echo ~/.nix-profile/bin/fish | sudo tee -a /etc/shells
-chsh -s ~/.nix-profile/bin/fish
-```
-
-切り替えたら、一度ログアウトして入り直す。
-常駐しているアプリ(skhd、herdr など)は起動したときのログインシェルを使い続けるので、入り直さないと古いシェルでコマンドを実行しようとして失敗する。
-
-6. 必要なら、マシンごとの設定を `~/.config/fish/conf.d/90-local.fish` に書く
-7. Cursor の拡張機能を入れる
-
-```sh
-cat ~/Work/Dotfiles/config/cursor/extensions.txt | xargs -L1 cursor --install-extension
-```
-
-拡張機能を足したり消したりしたときは、一覧を更新してコミットする。
+Cursor の拡張機能を足したり消したりしたときは、一覧を更新してコミットする。
 
 ```sh
 cursor --list-extensions > ~/Work/Dotfiles/config/cursor/extensions.txt
@@ -275,13 +322,16 @@ cursor --list-extensions > ~/Work/Dotfiles/config/cursor/extensions.txt
 ## マシンを増やす
 
 1. `hosts/<マシン名>.nix` を作る(`hosts/macbook.nix` を写して、`imports`、`home.username`、`home.homeDirectory` を直す)
-2. `flake.nix` の `homeConfigurations` に 1 項目足す。`system` は Apple Silicon の Mac なら `aarch64-darwin`、x86_64 の Linux なら `x86_64-linux` である
-3. `git add` してから、そのマシンで反映する
+2. `flake.nix` の `hosts` に 1 行足す。値は Apple Silicon の Mac なら `aarch64-darwin`、x86_64 の Linux なら `x86_64-linux` である
+3. `git add` してから、そのマシンで `scripts/setup <マシン名>` を実行する
 
 マシン名には実際のホスト名を使わない。
 ホスト名に個人名が含まれることがあり、それをリポジトリに書かないためである。
 
 ## 困ったとき
+
+まず `scripts/check` を実行する。
+よくある問題は、✗ と一緒に直し方が出る。
 
 ### 「Existing file ... is in the way」と出て止まる
 
@@ -298,7 +348,7 @@ home-manager がリンクを張ろうとした場所に、別のものがある�
 2. そのファイル(シンボリックリンクならリンク自体)を消す
 3. もう一度反映する
 
-`-b bak` を付けて反映すると、普通のファイルは消す代わりに `.bak` を付けて退避される。
+`scripts/switch -b bak` で反映すると、普通のファイルは消す代わりに `.bak` を付けて退避される。
 ただし、シンボリックリンクは退避されずに止まるので、2 で手で消す。
 同じ名前の `.bak` が既にある場合も止まる。
 
@@ -312,3 +362,9 @@ home-manager がリンクを張ろうとした場所に、別のものがある�
 
 `git add` していない。
 flake は Git が追跡しているファイルしか読まない。
+
+### 反映のときに「GUI アプリを入れられなかった」と出る
+
+Homebrew がアプリを入れられなかった。
+`scripts/check` で、足りないアプリを確かめる。
+管理者のパスワードが必要な場合があるので、パスワードを入力できるターミナルから、もう一度 `scripts/switch` を実行する。
