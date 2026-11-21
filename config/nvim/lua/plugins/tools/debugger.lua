@@ -6,6 +6,7 @@ return {
             -- fancy UI for the debugger
             {
                 "rcarriga/nvim-dap-ui",
+                dependencies = { "nvim-neotest/nvim-nio" }, -- nvim-dap-ui が動くのに必要
                 -- stylua: ignore
                 keys = {
                     { "<space>du", function() require("dapui").toggle({}) end, desc = "Dap UI" },
@@ -90,8 +91,7 @@ return {
             { "<space>dt", function() require("dap").terminate() end,                                            desc = "Terminate" },
             { "<space>dw", function() require("dap.ui.widgets").hover() end,                                     desc = "Widgets" },
         },
-        config = function ()
-            require("dap").setup({})
-        end
+        -- nvim-dap には setup() がなく、呼び出すとエラーになるので config は書かない
+        config = function() end,
     }
 }
