@@ -54,10 +54,14 @@ in
     done < ${guiAppsList}
     if [ -s "$missing" ]; then
       if [ -x /opt/homebrew/bin/brew ]; then
-        run env HOMEBREW_NO_AUTO_UPDATE=1 /opt/homebrew/bin/brew bundle install --no-upgrade --file="$missing" \
-          || warnEcho "GUI アプリを入れられなかった。scripts/check で足りないものを確かめる"
+        echo "[INFO]  /Applications にない GUI アプリを Homebrew で入れる(ここから Homebrew の出力)"
+        if run env HOMEBREW_NO_AUTO_UPDATE=1 /opt/homebrew/bin/brew bundle install --no-upgrade --file="$missing"; then
+          echo "[INFO]  GUI アプリを入れた"
+        else
+          echo "[WARN]  GUI アプリを入れられなかった。反映は続ける。scripts/check で足りないものを確かめる"
+        fi
       else
-        warnEcho "Homebrew がないので GUI アプリを入れていない。scripts/setup で入る"
+        echo "[WARN]  Homebrew がないので GUI アプリを入れていない。scripts/setup で入る"
       fi
     fi
     rm -f "$missing"

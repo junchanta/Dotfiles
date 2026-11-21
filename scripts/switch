@@ -12,13 +12,15 @@ host="$(cat "$HOME/.config/dotfiles/host" 2>/dev/null || true)"
 
 if [ "$repo" != "$(cd "$HOME/Work/Dotfiles" 2>/dev/null && pwd -P)" ]; then
   # shellcheck disable=SC2088
-  echo "~/Work/Dotfiles 以外の場所からは反映できない(設定のリンク先がその場所に固定されているため)。現在の場所: $repo" >&2
+  echo "[ERROR] ~/Work/Dotfiles 以外の場所からは反映できない(設定のリンク先がその場所に固定されているため)。現在の場所: $repo" >&2
   exit 1
 fi
 
 if [ -z "$host" ]; then
-  echo "このマシンにはまだ反映されていない。初回は scripts/setup <host> を実行する" >&2
+  echo "[ERROR] このマシンにはまだ反映されていない。初回は scripts/setup <host> を実行する" >&2
   exit 1
 fi
 
-exec home-manager switch --flake "$repo#$host" "$@"
+echo "[INFO]  $host の定義を反映する"
+home-manager switch --flake "$repo#$host" "$@"
+echo "[INFO]  反映が終わった。scripts/check で確かめる"

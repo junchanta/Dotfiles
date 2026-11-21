@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # このマシンの環境が、リポジトリの定義どおりに動いているかを確かめる。
-# リポジトリも設定も変更しない。問題があれば ✗ を出し、終了コード 1 で終わる。
+# リポジトリも設定も変更しない。問題があれば [ERROR] の行を出し、終了コード 1 で終わる。
 # (Neovim の確認は普段の設定で起動するので、未取得のプラグインがあれば、その取得は走る)
 #
 # 使い方: scripts/check [--quick]
@@ -18,14 +18,20 @@ fail=0
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-section() { printf '\n%s\n' "$1"; }
-ok() { printf '  ✓ %s\n' "$1"; }
+# 出力の各行の先頭に、種類を付ける
+#   [OK]    確かめて、問題がなかった
+#   [ERROR] 問題がある。直す必要がある
+#   [INFO]  知らせるだけ。直す必要はない
+#   (字下げだけの行は、直前の行の補足)
+section() { printf '\n== %s\n' "$1"; }
+ok() { printf '[OK]    %s\n' "$1"; }
 ng() {
-  printf '  ✗ %s\n' "$1"
+  printf '[ERROR] %s\n' "$1"
   fail=1
 }
-note() { printf '      %s\n' "$1"; }
-notes_from() { head -n "$2" "$1" | while IFS= read -r line; do note "$line"; done; }
+info() { printf '[INFO]  %s\n' "$1"; }
+detail() { printf '        %s\n' "$1"; }
+details_from() { head -n "$2" "$1" | while IFS= read -r line; do detail "$line"; done; }
 
 # ---------------------------------------------------------------------------
 section "リポジトリ"
@@ -45,7 +51,7 @@ fi
 ok "このマシンの名前は $host"
 
 if [ -n "$(git -C "$repo" status --porcelain)" ]; then
-  note "コミットしていない変更がある(git status で確認する)"
+  info "コミットしていない変更がある(git status で確認する)"
 fi
 
 # ---------------------------------------------------------------------------
@@ -68,7 +74,7 @@ if built="$(nix build "$repo#homeConfigurations.$host.activationPackage" --no-li
 else
   ng "リポジトリの定義をビルドできない"
   tail -n 15 "$tmp/build.err" >"$tmp/build.tail"
-  notes_from "$tmp/build.tail" 15
+  details_from "$tmp/build.tail" 15
 fi
 
 # ---------------------------------------------------------------------------
@@ -77,7 +83,7 @@ section "設定ファイルのリンク"
 files_root="$(realpath "$gen/home-files")"
 if ! find "$files_root" \( -type l -o -type f \) -print0 >"$tmp/files" 2>"$tmp/find.err" || [ ! -s "$tmp/files" ]; then
   ng "管理しているファイルの一覧を取れない"
-  notes_from "$tmp/find.err" 5
+  details_from "$tmp/find.err" 5
 else
   count=0
   bad=0
@@ -118,7 +124,7 @@ env -i HOME="$HOME" USER="$USER" TERM=xterm-256color "$fish" -l -i -c '
 
 if [ -s "$tmp/fish.err" ]; then
   ng "fish の起動時にエラーが出る"
-  notes_from "$tmp/fish.err" 10
+  details_from "$tmp/fish.err" 10
 else
   ok "fish がエラーなしで起動する"
 fi
@@ -192,7 +198,7 @@ for shell in $(cut -f2 "$tmp/shells" | sort -u); do
   [ -x "$shell" ] && continue
   names="$(awk -F '\t' -v s="$shell" '$2 == s { print $1 }' "$tmp/shells" | while read -r pid; do basename "$(ps -o comm= -p "$pid" 2>/dev/null)"; done | sort -u | head -n 8 | tr '\n' ' ')"
   ng "存在しないシェル($shell)を使い続けているアプリがある: $names"
-  note "そのアプリを起動し直すか、ログアウトして入り直す"
+  detail "そのアプリを起動し直すか、ログアウトして入り直す"
   bad=$((bad + 1))
 done
 [ "$bad" -eq 0 ] && ok "動いているアプリは、存在するシェルを使っている"
@@ -207,7 +213,7 @@ if tmux -L "$sock" -f /dev/null new-session -d -s check 'sleep 30' 2>"$tmp/tmux.
     ok "tmux の設定に文法の誤りがない"
   else
     ng "tmux の設定に誤りがある"
-    notes_from "$tmp/tmux.err" 5
+    details_from "$tmp/tmux.err" 5
   fi
   tmux -L "$sock" kill-server 2>/dev/null
 else
@@ -218,7 +224,7 @@ if git config --global --list >/dev/null 2>"$tmp/git.err"; then
   ok "git の設定を読める"
 else
   ng "git の設定を読めない"
-  notes_from "$tmp/git.err" 5
+  details_from "$tmp/git.err" 5
 fi
 
 ghostty="/Applications/Ghostty.app/Contents/MacOS/ghostty"
@@ -228,7 +234,7 @@ if [ -n "$ghostty" ]; then
     ok "ghostty の設定に誤りがない"
   else
     ng "ghostty の設定に誤りがある"
-    notes_from "$tmp/ghostty.out" 5
+    details_from "$tmp/ghostty.out" 5
   fi
 fi
 
@@ -249,7 +255,7 @@ if [ "$os" = Darwin ]; then
 
   marker="$files_root/Library/Fonts/.home-manager-fonts-version"
   if [ ! -e "$marker" ]; then
-    note "Nix で入れるフォントは定義されていない"
+    info "Nix で入れるフォントは定義されていない"
   else
     fonts_src="$(cat "$marker")/share/fonts"
     fonts_dst="$HOME/Library/Fonts/HomeManager"
@@ -260,7 +266,7 @@ if [ "$os" = Darwin ]; then
       [ -e "$fonts_dst/${f#"$fonts_src"/}" ] || missing=$((missing + 1))
     done < <(find -L "$fonts_src" -type f -print0 2>/dev/null)
     if [ "$total" -eq 0 ]; then
-      note "Nix で入れるフォントは定義されていない"
+      info "Nix で入れるフォントは定義されていない"
     elif [ "$missing" -eq 0 ]; then
       ok "Nix で入れた $total 個のフォントファイルがすべてある"
     else
@@ -281,7 +287,7 @@ if [ "$os" = Darwin ]; then
     else
       ng "$name が動いていない"
       case "$name" in
-      yabai | skhd) note "初めての反映と版を上げた後は、アクセシビリティの許可が要る(README の「困ったとき」)" ;;
+      yabai | skhd) detail "初めての反映と版を上げた後は、アクセシビリティの許可が要る(README の「困ったとき」)" ;;
       esac
     fi
     # 同じ名前のものが、Nix 以外の場所(以前の Homebrew 版など)から動いていないこと
@@ -293,7 +299,7 @@ if [ "$os" = Darwin ]; then
       esac
     done
   done
-  [ "$found" -eq 0 ] && note "home-manager が管理する常駐ツールはない"
+  [ "$found" -eq 0 ] && info "home-manager が管理する常駐ツールはない"
 
   if [ -e "$gen/LaunchAgents/org.nix-community.home.yabai.plist" ]; then
     if yabai -m query --spaces >/dev/null 2>&1; then
@@ -307,7 +313,7 @@ if [ "$os" = Darwin ]; then
 
   gui_apps="$HOME/.config/dotfiles/gui-apps"
   if [ ! -s "$gui_apps" ]; then
-    note "GUI アプリは定義されていない"
+    info "GUI アプリは定義されていない"
   else
     total=0
     bad=0
@@ -326,7 +332,7 @@ fi
 section "Neovim"
 
 if [ "$quick" -eq 1 ]; then
-  note "省略した(--quick)"
+  info "省略した(--quick)"
 else
   samples="$tmp/nvim"
   mkdir -p "$samples"
@@ -352,10 +358,10 @@ EOF
 
   if ! DOTFILES_CHECK_DIR="$samples" nvim --headless "+luafile $repo/scripts/lib/nvim-check.lua" >"$tmp/nvim.out" 2>&1; then
     ng "Neovim でエラーが出る"
-    notes_from "$tmp/nvim.out" 30
+    details_from "$tmp/nvim.out" 30
   elif grep -qE 'E[0-9]+:|Error|stack traceback' "$tmp/nvim.out"; then
     ng "Neovim がエラーらしい出力をした"
-    notes_from "$tmp/nvim.out" 30
+    details_from "$tmp/nvim.out" 30
   else
     ok "ファイルを開き、全プラグインを読み込み、キー操作を試してもエラーが出ない"
   fi
@@ -364,8 +370,8 @@ fi
 # ---------------------------------------------------------------------------
 printf '\n'
 if [ "$fail" -eq 0 ]; then
-  printf '問題は見つからなかった。\n'
+  ok "問題は見つからなかった"
 else
-  printf '問題がある。上の ✗ を直してから、もう一度実行する。\n'
+  ng "問題がある。上の [ERROR] を直してから、もう一度実行する"
 fi
 exit "$fail"
