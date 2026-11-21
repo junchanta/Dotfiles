@@ -306,8 +306,6 @@ push するのは、`scripts/check` が通った master だけである。
 ## 新しいマシンのセットアップ
 
 このリポジトリは非公開なので、clone するのに GitHub へのログインが要る。
-まっさらなマシンには `git` も `gh` もないので、先に Nix を入れ、Nix から `gh` を一時的に使って clone する。
-
 どの手順も、パスワードや続行の確認を聞かれる。入力できるターミナルで実行する。
 
 1. macOS では、開発用のコマンドラインツールを入れる(`git` とコンパイラが入る)
@@ -319,24 +317,25 @@ xcode-select --install
 このコマンドは、インストールの画面を開いてすぐに戻る。
 画面のインストールが終わるまで待ち、`git --version` が版を表示することを確かめてから次に進む。
 
-2. Nix を入れ、新しいターミナルを開く
+2. このリポジトリを `~/Work/Dotfiles` に clone する
 
 ```sh
-# macOS
-curl -L https://nixos.org/nix/install | sh
-# Linux
-curl -L https://nixos.org/nix/install | sh -s -- --daemon
+git clone https://github.com/junchanta/Dotfiles.git ~/Work/Dotfiles
+# SSH 鍵を使う場合
+git clone git@github.com:junchanta/Dotfiles.git ~/Work/Dotfiles
 ```
 
-3. GitHub にログインし、このリポジトリを `~/Work/Dotfiles` に clone する
+HTTPS の場合は、ユーザー名とパスワードを聞かれる。
+パスワードには、GitHub のアカウントのパスワードではなく、個人用のアクセストークンを入力する。
+
+3. トークンも SSH 鍵も用意していない場合は、2 の代わりに、Nix から `gh` を一時的に使って、ブラウザでログインして clone する
 
 ```sh
+curl -L https://nixos.org/nix/install | sh      # Linux では末尾に -s -- --daemon を付ける
+# 新しいターミナルを開いてから
 nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gh -- auth login --hostname github.com --git-protocol https --web
 nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gh -- repo clone junchanta/Dotfiles ~/Work/Dotfiles
 ```
-
-1 行目はブラウザが開くので、表示されたコードを入力してログインする。
-clone されるのは master である。
 
 4. セットアップを実行する(`<host>` は `hosts/` のファイル名から `.nix` を除いたもの)
 
