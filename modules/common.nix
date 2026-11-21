@@ -12,11 +12,14 @@ let
   # Cursor の設定の置き場所(ホームからの相対)。OS で違う
   cursorUserDir =
     if pkgs.stdenv.hostPlatform.isDarwin then "Library/Application Support/Cursor/User" else ".config/Cursor/User";
+in
+{
+  imports = [ ./installer-tools.nix ];
 
-  # 公式のインストーラで入れるツール。ツール自身が新しい版に更新するので、Nix で版を固定しない。
-  # 反映のときに、present にコマンドがないものだけを入れる。
-  # args はインストーラに渡す引数で、なければ書かなくてよい
-  installerTools = [
+  # 公式のインストーラで入れるツール(仕組みは installer-tools.nix)。
+  # args はインストーラに渡す引数で、なければ書かなくてよい。
+  # Omarchy だけは、omarchy.nix でこの一覧を空にしている
+  dotfiles.installerTools = [
     {
       name = "Claude Code";
       present = "${config.home.homeDirectory}/.local/bin/claude";
@@ -30,12 +33,7 @@ let
       args = "--no-modify-path";
     }
   ];
-  # 1 行に「名前、コマンドの場所、インストーラの URL、インストーラに渡す引数」をタブ区切りで書いた一覧
-  installerToolsList = pkgs.writeText "installer-tools" (
-    lib.concatMapStrings (t: "${t.name}\t${t.present}\t${t.url}\t${t.args or ""}\n") installerTools
-  );
-in
-{
+
   # config/ 以下のファイルへ直接リンクを張る関数。ほかの modules からも使う。
   # Nix ストアにコピーしないので、ファイルを編集するとすぐ反映される
   lib.dotfiles.link = path: config.lib.file.mkOutOfStoreSymlink "${dotfiles}/config/${path}";
@@ -59,7 +57,6 @@ in
     # エディタ、ターミナル(fish は下の programs.fish が入れる)
     neovim
     tmux
-    herdr # 本体だけ。macOS のアプリ版(herdr-gpui)は Homebrew で入れる
 
     # neovim が使うもの
     # (node も必要だが、言語の実行環境はマシンごとに入れるので、ここには含めない)
@@ -109,31 +106,6 @@ in
   home.file.".claude/skills/nvim-key".source = config.lib.dotfiles.link "claude/skills/nvim-key";
   home.file.".claude/skills/catch-up".source = config.lib.dotfiles.link "claude/skills/catch-up";
   home.file.".claude/skills/dotfiles".source = config.lib.dotfiles.link "claude/skills/dotfiles";
-
-  # scripts/check が読む一覧
-  xdg.configFile."dotfiles/installer-tools".source = installerToolsList;
-
-  home.activation.installInstallerTools = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-    # 一覧は 3 番の入力から読む。標準入力から読むと、インストーラが標準入力を読んだときに一覧を食べてしまう
-    while IFS="$(printf '\t')" read -r -u 3 name present url args; do
-      [ -x "$present" ] && continue
-      echo "[INFO]  $name を公式のインストーラで入れる(ここからインストーラの出力)"
-      if [[ -v DRY_RUN ]]; then
-        echo "(dry run なので、実行しない: $url)"
-        continue
-      fi
-      installer="$(mktemp)"
-      # インストーラは curl や tar などを使うので、OS のコマンドを PATH に入れて実行する
-      if ${pkgs.curl}/bin/curl -fsSL -o "$installer" "$url" && [ -s "$installer" ] \
-        && env PATH="${pkgs.curl}/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH" ${pkgs.bash}/bin/bash "$installer" $args </dev/null; then
-        echo "[INFO]  インストーラの出力はここまで"
-      else
-        echo "[WARN]  $name を入れられなかった。反映は続ける。scripts/check で確かめる"
-      fi
-      rm -f "$installer"
-      [ -x "$present" ] || echo "[WARN]  $name のコマンドが $present にない"
-    done 3< ${installerToolsList}
-  '';
 
   # home-manager コマンド自体も home-manager で入れる
   programs.home-manager.enable = true;

@@ -72,6 +72,10 @@ in
     config.lib.dotfiles.link "ghostty/themes/tokyonight_night";
 
   home.packages = [
+    # herdr の本体だけ。アプリ版(herdr-gpui)は Homebrew で入れる。
+    # Omarchy では、Omarchy 自身が herdr を入れて更新するので、Nix では入れない
+    pkgs.herdr
+
     # sketchybar の表示に使うフォント
     pkgs.nerd-fonts.jetbrains-mono
   ];

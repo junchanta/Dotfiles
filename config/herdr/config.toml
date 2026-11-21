@@ -53,11 +53,12 @@ reload_config = "prefix+shift+r"
 # git worktree で並行作業用 workspace を作る (Claude Code の並列実行に便利)
 new_worktree = "prefix+shift+g"
 
-# カレントディレクトリを Finder で開く (tmux: bind o 相当)
+# カレントディレクトリをファイルマネージャで開く (tmux: bind o 相当)
+# Linux には open がないので、xdg-open があればそちらを使う
 [[keys.command]]
 key = "prefix+shift+o"
 type = "shell"
-command = "open ."
+command = "command -v xdg-open >/dev/null && xdg-open . || open ."
 
 [ui]
 # タブ作成時に名前入力を求めない (tmux と同じ即時作成)

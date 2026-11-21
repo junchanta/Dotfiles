@@ -123,7 +123,7 @@ result=0
 
 # 8. 残りの手作業
 cursor=""
-for candidate in /opt/homebrew/bin/cursor /usr/local/bin/cursor /Applications/Cursor.app/Contents/Resources/app/bin/cursor; do
+for candidate in /opt/homebrew/bin/cursor /usr/local/bin/cursor /Applications/Cursor.app/Contents/Resources/app/bin/cursor /usr/bin/cursor; do
   if [ -x "$candidate" ]; then
     cursor="$candidate"
     break

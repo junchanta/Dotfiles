@@ -18,6 +18,7 @@
       # マシンを増やすときは、hosts/ に 1 ファイル足してここに 1 行足す
       hosts = {
         macbook = "aarch64-darwin";
+        omarchy = "x86_64-linux";
       };
 
       mkHome =

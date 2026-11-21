@@ -20,6 +20,7 @@ README の方針に当てはまらない入れ方(Brewfile を別に置く、手
 1. **置き場所を決める。** README の「方針」と「何がどこで管理されているか」に従う。
     - 全マシン共通：`config/` と `modules/common.nix`
     - macOS だけ：`modules/darwin.nix`
+    - Omarchy だけ：`modules/omarchy.nix`
     - そのマシンだけ（言語別の道具の PATH など）：リポジトリには入れず、`~/.config/fish/conf.d/90-local.fish` などに書く。この場合は 3 以降を行わない
 2. **作業前の状態を確かめる。** `git -C ~/Work/Dotfiles status` で、ブランチと未コミットの変更を確認する。自分の作業と関係ない変更があれば、混ぜずにユーザーに伝える。
 3. **変更の大きさを見分ける。** README の「変更の進め方」に従う。

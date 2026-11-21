@@ -22,6 +22,7 @@
 - 自分で新しい版に更新するものは、Nix で入れない。Nix で版を固定すると、本体の更新と食い違うためである。一覧はこのリポジトリに書き、反映のときに、入っていないものだけが入る。入れた後の更新は、それぞれに任せる
     - macOS の GUI アプリと Codex は、Homebrew の cask で入れる
     - Claude Code と opencode は、それぞれの公式のインストーラで入れる
+- Omarchy が自分で入れて更新するものは、Omarchy に任せる。デスクトップ(Hyprland、テーマ、GUI アプリ)、herdr、mise で入る道具(Claude Code、Codex、opencode、node など)が当てはまる
 - 言語の実行環境(node、python など)と、プロジェクトごとの道具は管理しない。版がプロジェクトによって違うので、各マシンで個別に入れる
 
 macOS でも Linux でも、反映に使うのは home-manager だけである。
@@ -36,6 +37,8 @@ hosts/           マシンごとの設定。使う modules を選ぶ
 modules/         範囲ごとの設定。入れるものと、config/ のどれをどこへリンクするか
   common.nix     全マシン共通
   darwin.nix     macOS だけ
+  omarchy.nix    Omarchy だけ
+  installer-tools.nix  公式のインストーラでツールを入れる仕組み
 config/          設定ファイルの実体。アプリ名で並べる
 scripts/         運用のコマンド
   setup          新しいマシンをセットアップする
@@ -54,25 +57,39 @@ docs/history/    設計の経緯
 リンクの先はリポジトリのファイルそのものである。
 そのため `config/` のファイルを編集すると、`scripts/switch` を実行しなくても、すぐに反映される。
 
-マシンは現在 `macbook`(macOS)だけである。
-Omarchy 用の `hosts/` と `modules/omarchy.nix` はまだない。
-Omarchy に対応させるときは、次の点を直す必要がある。
+マシンは `macbook`(macOS)と `omarchy`(Omarchy)の 2 種類である。
 
-- tmux：コピーに `pbcopy`、ディレクトリを開くのに `open` を使っている。Linux では `wl-copy` と `xdg-open` に切り替える
-- ghostty：Omarchy のテーマを読み込む Linux 用の `local.conf` を作り、`modules/omarchy.nix` から配る
-- herdr：`config.toml` のディレクトリを開くキーが `open .` である
+Omarchy は、最初から nvim、tmux、ghostty、herdr、git の設定を置いている。
+このリポジトリは、それらを次のように扱う。
+
+- nvim、tmux、herdr：共通の設定で置き換える。Omarchy のテーマとの連動(nvim の配色の切り替えなど)は効かなくなる
+- ghostty：操作(キー)は共通の設定を使い、見た目(Omarchy のテーマ、フォント、余白)は `config/ghostty/omarchy.conf` に残す
+- git：Omarchy の `~/.config/git/config` はそのまま残る。共通の `~/.gitconfig` のほうが優先される
+- fish：Omarchy は bash が前提で、fish の設定を持たない。mise で入る道具の PATH だけを `config/fish/omarchy.fish` で通す。mise 自身は fish では有効化しない。有効化すると、mise の道具が PATH の先頭に置かれ、Nix の gh より mise の gh が先に使われるためである
+
+OS で違うコマンドは、設定の中で切り替えている。
+
+- tmux：コピーは macOS が `pbcopy`、Linux が `wl-copy`。ディレクトリを開くのは macOS が `open`、Linux が `xdg-open`
+- herdr：ディレクトリを開くキーは、`xdg-open` があればそれを使い、なければ `open` を使う
+
+Omarchy では、Nix で入れたコマンド(nvim、tmux、git など)と同じ名前のものが、pacman でも `/usr/bin` に入っている。
+fish では Nix のものが先に使われる。
 
 ## 何がどこで管理されているか
 
 - 全マシン共通(`modules/common.nix`)
-    - CLI ツール：eza、bat、tree、wget、ripgrep、fzf、jq、direnv、git、gh、lazygit、neovim、tmux、herdr、fish、luarocks、lua-language-server、shfmt、tree-sitter
+    - CLI ツール：eza、bat、tree、wget、ripgrep、fzf、jq、direnv、git、gh、lazygit、neovim、tmux、fish、luarocks、lua-language-server、shfmt、tree-sitter
     - 設定：fish(配色を含む)、nvim、tmux、git、ghostty、Cursor、herdr
     - Claude Code：グローバルの `CLAUDE.md` と、自作の skill(nvim-key、catch-up、dotfiles)
-    - 公式のインストーラで入れるツール：Claude Code、opencode
+    - 公式のインストーラで入れるツール：Claude Code、opencode(Omarchy を除く)
 - macOS だけ(`modules/darwin.nix`)
+    - CLI ツール：herdr の本体
     - 設定：yabai、skhd、sketchybar、fish と ghostty の macOS 用の部分
     - フォント：JetBrainsMono Nerd Font(sketchybar の表示に使う)
     - Homebrew の cask で入れるもの：ghostty、Cursor、herdr のアプリ版、Antigravity、Orca、Codex
+- Omarchy だけ(`modules/omarchy.nix`)
+    - 設定：fish と ghostty の Omarchy 用の部分、Omarchy の tmux 設定を置き換えるファイル
+    - ツールは足さない。herdr、Claude Code、Codex、opencode、node は Omarchy が入れる。共通の「公式のインストーラで入れるツール」の一覧は、Omarchy でだけ空にしている
 - マシンごと(リポジトリの管理外。各マシンで直接書く)
     - `~/.config/fish/conf.d/90-local.fish`：言語別の道具(anyenv、Go、Rust など)の PATH
     - `~/.config/fish/functions/`：そのマシンでだけ使う fish の関数
@@ -86,7 +103,7 @@ yabai、skhd、sketchybar の本体は、まだこのリポジトリで管理し
 
 fish の設定は 3 つのファイルに分かれており、`~/.config/fish/conf.d/` の中で名前順に読まれる。
 
-1. `10-darwin.fish`：macOS だけの設定(`config/fish/darwin.fish`)
+1. `10-darwin.fish` か `10-omarchy.fish`：OS 別の設定(`config/fish/darwin.fish`、`config/fish/omarchy.fish`)
 2. `20-common.fish`：全マシン共通の設定(`config/fish/common.fish`)
 3. `90-local.fish`：そのマシンだけの設定(管理外)
 
@@ -122,7 +139,7 @@ fish_add_path --path --move <ディレクトリ>
 
 - fish：新しいシェルを開く
 - tmux：`Ctrl-t` → `r`
-- ghostty：`Cmd-Shift-,`
+- ghostty：`Cmd-Shift-,`(Omarchy では `Ctrl-Shift-,`)
 - herdr：`Ctrl-t` → `Shift-r`
 - nvim：開き直す
 - Cursor：自動で反映される
@@ -197,7 +214,8 @@ Homebrew の cask で入れるもの(macOS)は、`modules/darwin.nix` の `homeb
 Homebrew の公式以外の tap から入れるものは、cask の行を `cask "<tap>/<名前>", trusted: true` と書く。
 `trusted: true` がないと、Homebrew がその cask を読まない。
 
-公式のインストーラ(`curl ... | bash` の形で配られているもの)で入れるツールは、`modules/common.nix` の `installerTools` に書く。
+公式のインストーラ(`curl ... | bash` の形で配られているもの)で入れるツールは、`modules/common.nix` の `dotfiles.installerTools` に書く。
+Omarchy では、この種類のツールを Omarchy 自身が mise で入れるので、`modules/omarchy.nix` でこの一覧を空にしている。
 
 1. 名前、コマンドが置かれる場所、インストーラの URL を足すか、消す。インストーラに引数を渡すときは `args` も書く
 2. コマンドが置かれる場所が PATH に入っていなければ、`config/fish/common.fish` に足す
@@ -367,7 +385,7 @@ nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gh -- repo cl
 - このマシンの種類(CPU と OS)が、指定した host の定義と合っているかを確かめる。合っていなければ、何も変えずに止まる
 - flake を使えるようにする
 - macOS で Homebrew がなければ入れる
-- 環境を反映する。既にあるファイルは `.bak` を付けて退避する。GUI アプリ、Codex、Claude Code、opencode も、入っていなければ入る
+- 環境を反映する。既にあるファイルは `.bak` を付けて退避する。Omarchy が最初に置いた設定(`~/.config/nvim` など)も、こうして退避される。macOS では、GUI アプリ、Codex、Claude Code、opencode も、入っていなければ入る
 - ログインシェルを Nix の fish にする(パスワードを聞かれる)
 - 最後に `scripts/check --quick` を実行する。足りないものがあれば `[ERROR]` が出て、失敗として終わる
 
@@ -393,7 +411,14 @@ macOS の yabai、skhd、sketchybar は、設定ファイルだけが配られ�
 - ghostty の設定が、新しく入る版(1.4.0)でも通ること
 
 Nix と Homebrew を入れるところからの通しの実行は、まだしていない。
-Linux では、まだ何も確かめていない。
+
+Omarchy で確かめてある範囲は次のとおりである。
+
+- tmux、ghostty、herdr の設定が、Omarchy に入っている版(tmux 3.8、ghostty 1.4.0、herdr 0.9.1)で誤りなく読めること
+- tmux で、Omarchy の設定に上書きされず、共通の prefix と Linux 用のコピーのコマンドが使われること
+
+- Omarchy を入れたばかりのマシンで、Nix を入れるところから `scripts/setup omarchy` を通せること
+- 再起動した後に、`scripts/check` がすべて `[OK]` になること
 
 Cursor の拡張機能を足したり消したりしたときは、一覧を更新してコミットする。
 

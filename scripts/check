@@ -252,11 +252,22 @@ done
 
 # 入れ替えや削除で実行ファイルが消えたのに、古いものから動き続けているアプリを探す。
 # 動いてはいるが、足りない部品を読み込めずに一部の操作が失敗することがある
-ps -x -o pid=,comm= 2>/dev/null | while read -r _ exe; do
-  case "$exe" in
-  /*) [ -e "$exe" ] || basename "$exe" ;;
-  esac
-done | sort | uniq -c | awk '{ printf "%s(%s 個)\n", $2, $1 }' >"$tmp/gone"
+if [ "$os" = Linux ]; then
+  # Linux の ps は実行ファイルの場所を出さない。/proc から、消えた実行ファイルの印を読む
+  for exe in /proc/[0-9]*/exe; do
+    [ -O "${exe%/exe}" ] || continue
+    target="$(readlink "$exe" 2>/dev/null)" || continue
+    case "$target" in
+    *" (deleted)") basename "${target% (deleted)}" ;;
+    esac
+  done
+else
+  ps -x -o pid=,comm= 2>/dev/null | while read -r _ exe; do
+    case "$exe" in
+    /*) [ -e "$exe" ] || basename "$exe" ;;
+    esac
+  done
+fi | sort | uniq -c | awk '{ printf "%s(%s 個)\n", $2, $1 }' >"$tmp/gone"
 if [ -s "$tmp/gone" ]; then
   warn "消えた実行ファイルから動き続けているアプリがある: $(tr '\n' ' ' <"$tmp/gone")"
   detail "入れ替える前から動いているものである。終了して開き直すと、新しいものに切り替わる"
