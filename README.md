@@ -28,6 +28,9 @@
 macOS でも Linux でも、反映に使うのは home-manager だけである。
 nix-darwin は使っていない。
 
+このリポジトリは公開している。
+認証情報と、仕事に関わる情報(会社名、社内の URL、プロジェクト名など)は入れない。
+
 ## 全体像
 
 ```
@@ -341,7 +344,7 @@ push するのは、`scripts/check` が通った master だけである。
 
 ## 新しいマシンのセットアップ
 
-このリポジトリは非公開なので、clone するのに GitHub へのログインが要る。
+このリポジトリは公開しているので、clone するのに GitHub へのログインは要らない。
 どの手順も、パスワードや続行の確認を聞かれる。入力できるターミナルで実行する。
 
 1. macOS では、開発用のコマンドラインツールを入れる(`git` とコンパイラが入る)
@@ -357,23 +360,9 @@ xcode-select --install
 
 ```sh
 git clone https://github.com/junchanta/Dotfiles.git ~/Work/Dotfiles
-# SSH 鍵を使う場合
-git clone git@github.com:junchanta/Dotfiles.git ~/Work/Dotfiles
 ```
 
-HTTPS の場合は、ユーザー名とパスワードを聞かれる。
-パスワードには、GitHub のアカウントのパスワードではなく、個人用のアクセストークンを入力する。
-
-3. トークンも SSH 鍵も用意していない場合は、2 の代わりに、Nix から `gh` を一時的に使って、ブラウザでログインして clone する
-
-```sh
-curl -L https://nixos.org/nix/install | sh      # Linux では末尾に -s -- --daemon を付ける
-# 新しいターミナルを開いてから
-nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gh -- auth login --hostname github.com --git-protocol https --web
-nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gh -- repo clone junchanta/Dotfiles ~/Work/Dotfiles
-```
-
-4. セットアップを実行する(`<host>` は `hosts/` のファイル名から `.nix` を除いたもの)
+3. セットアップを実行する(`<host>` は `hosts/` のファイル名から `.nix` を除いたもの)
 
 ```sh
 ~/Work/Dotfiles/scripts/setup <host>
@@ -389,14 +378,15 @@ nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gh -- repo cl
 - ログインシェルを Nix の fish にする(パスワードを聞かれる)
 - 最後に `scripts/check --quick` を実行する。足りないものがあれば `[ERROR]` が出て、失敗として終わる
 
-5. 最後に表示される「残りの手作業」を行う
+4. 最後に表示される「残りの手作業」を行う
     - ログインシェルを切り替えた場合は、一度ログアウトして入り直す。常駐しているアプリは起動したときのログインシェルを使い続けるので、入り直さないと古いシェルでコマンドを実行しようとして失敗する
     - マシンごとの設定を `~/.config/fish/conf.d/90-local.fish` に書く
+    - GitHub にログインする(`gh auth login`)。push するのに要る
     - Claude Code、Codex、opencode などにログインする
     - Cursor の拡張機能を入れる
     - ターミナルで `nvim` を一度起動する。プラグインが取得される。Cursor の中の Neovim はプラグインを取得しないので、Cursor より先にターミナルで起動する
     - node を入れた後に、Neovim で `:Lazy build markdown-preview.nvim` を実行する
-6. `scripts/check` を通す
+5. `scripts/check` を通す
 
 Neovim は、node や Go がまだないマシンでも、エラーなしで起動する。
 言語ごとの LSP やフォーマッタは、その言語を入れた後に Neovim を起動すると入る。
