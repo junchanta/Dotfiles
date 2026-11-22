@@ -91,12 +91,13 @@ fish では Nix のものが先に使われる。
     - フォント：JetBrainsMono Nerd Font(sketchybar の表示に使う)
     - Homebrew の cask で入れるもの：ghostty、Cursor、herdr のアプリ版、Antigravity、Orca、Codex
 - Omarchy だけ(`modules/omarchy.nix`)
-    - 設定：fish と ghostty の Omarchy 用の部分、Omarchy の tmux 設定を置き換えるファイル
+    - 設定：fish と ghostty の Omarchy 用の部分、Omarchy の tmux 設定を置き換えるファイル、Hyprland のショートカット(`bindings.lua`)と入力(`input.lua`)
     - ツールは足さない。herdr、Claude Code、Codex、opencode、node は Omarchy が入れる。共通の「公式のインストーラで入れるツール」の一覧は、Omarchy でだけ空にしている
 - マシンごと(リポジトリの管理外。各マシンで直接書く)
     - `~/.config/fish/conf.d/90-local.fish`：言語別の道具(anyenv、Go、Rust など)の PATH
     - `~/.config/fish/functions/`：そのマシンでだけ使う fish の関数
     - `~/.config/herdr/config-gpui.local.toml`、`~/.config/herdr/hws.json`：herdr の画面設定とワークスペース定義
+    - `~/.config/hypr/` のほかのファイル(`monitors.lua` など)と `~/.config/omarchy/`：Omarchy の、マシンごとに違う設定
     - `~/.claude/skills/` のほかの skill：会社のリポジトリ由来のものや、アプリ(herdr、Orca)が入れたもの
 
 yabai、skhd、sketchybar の本体は、まだこのリポジトリで管理していない。
@@ -146,6 +147,7 @@ fish_add_path --path --move <ディレクトリ>
 - herdr：`Ctrl-t` → `Shift-r`
 - nvim：開き直す
 - Cursor：自動で反映される
+- Hyprland(Omarchy):`hyprctl reload`
 
 Cursor のように、アプリの画面から設定を変えた場合も、`config/` のファイルが直接書き換わる。
 変更はそのままコミットすればよい。
