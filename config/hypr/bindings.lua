@@ -59,28 +59,41 @@ local function active_window_is_terminal()
   return false
 end
 
+-- Obsidian では CTRL + 文字を Vim の操作（<C-k>、<C-d>、<C-w> など）に使う。
+-- SUPER + 文字を CTRL に変えて送ると Vim の操作と区別できなくなるので、
+-- obsidian を付けたキーは SUPER のまま送る。Obsidian 側では、これらのコマンドの
+-- ホットキーを Mod（Linux では CTRL）から Meta（SUPER。Mac では Cmd）に付け替えてある。
+local function active_window_is_obsidian()
+  local window = hl.get_active_window()
+  if not window then
+    return false
+  end
+
+  return (window.class or window.initial_class or ""):lower():find("obsidian", 1, true) ~= nil
+end
+
 -- SUPER + 文字 → CTRL + 文字。ターミナルでは CTRL + 文字が別の意味（中断、
 -- 一時停止など）になるので、terminal に書いたキーだけ CTRL + SHIFT で送り、
 -- それ以外は何もしない。
 local mac_shortcuts = {
   { key = "Z", description = "取り消し" },
   { key = "S", description = "保存" },
-  { key = "F", description = "検索", terminal = true },
-  { key = "G", description = "次を検索" },
+  { key = "F", description = "検索", terminal = true, obsidian = true },
+  { key = "G", description = "次を検索", obsidian = true },
   { key = "T", description = "新しいタブ", terminal = true },
-  { key = "W", description = "タブを閉じる", terminal = true },
+  { key = "W", description = "タブを閉じる", terminal = true, obsidian = true },
   { key = "N", description = "新しいウィンドウ", terminal = true },
   { key = "L", description = "アドレスバー" },
   { key = "R", description = "再読み込み" },
-  { key = "O", description = "開く" },
-  { key = "P", description = "印刷" },
-  { key = "B", description = "太字 / ブックマーク" },
-  { key = "I", description = "斜体" },
+  { key = "O", description = "開く", obsidian = true },
+  { key = "P", description = "印刷", obsidian = true },
+  { key = "B", description = "太字 / ブックマーク", obsidian = true },
+  { key = "I", description = "斜体", obsidian = true },
   { key = "U", description = "下線" },
-  { key = "D", description = "ブックマークに追加" },
-  { key = "E" },
+  { key = "D", description = "ブックマークに追加", obsidian = true },
+  { key = "E", obsidian = true },
   { key = "J" },
-  { key = "K" },
+  { key = "K", obsidian = true },
   { key = "Y" },
 }
 
@@ -89,7 +102,9 @@ for _, shortcut in ipairs(mac_shortcuts) do
   local description = shortcut.description and (shortcut.description .. "（" .. sends .. "）") or sends
 
   o.rebind("SUPER + " .. shortcut.key, description, function()
-    if not active_window_is_terminal() then
+    if shortcut.obsidian and active_window_is_obsidian() then
+      send_shortcut_once("SUPER", shortcut.key)
+    elseif not active_window_is_terminal() then
       send_shortcut_once("CTRL", shortcut.key)
     elseif shortcut.terminal then
       send_shortcut_once("CTRL SHIFT", shortcut.key)
