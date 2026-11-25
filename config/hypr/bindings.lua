@@ -164,3 +164,65 @@ hl.define_submap("omarchy_move", "reset", function()
   hl.bind("catchall", hl.dsp.submap("reset"))
 end)
 o.bind("CTRL + SHIFT + semicolon", "ウィンドウをスクラッチパッドへ入れる（続けて 1〜3）", hl.dsp.submap("omarchy_move"))
+
+-- SUPER+TAB: 開いているウィンドウをフローティングメニューで選んで切り替える（元は次のワークスペースへ移動）。
+-- 表示中は TAB / SUPER+TAB で下へ、SHIFT+TAB / SUPER+SHIFT+TAB で上へ動く。Enter で決定、Esc で閉じる。
+-- メニュー（Omarchy の持ち物）は上下キーしか受けないので、表示中だけ TAB を上下キーに変えて送る。
+local window_switcher = os.getenv("HOME") .. "/.config/hypr/scripts/window-switcher"
+local switcher_state = "closed" -- closed / starting / open
+local switcher_tab_binds = {}
+
+local function send_key_once(key)
+  hl.dispatch(hl.dsp.send_key_state({ mods = "", key = key, state = "down" }))
+  hl.timer(function()
+    hl.dispatch(hl.dsp.send_key_state({ mods = "", key = key, state = "up" }))
+  end, { timeout = 50, type = "oneshot" })
+end
+
+local function set_switcher_tab_binds(enabled)
+  for _, keybind in pairs(switcher_tab_binds) do
+    -- Hyprland 0.56 は、消えたバインドの tostring 以外を触ると落ちる（Omarchy の utilities.lua と同じ対策）
+    if keybind ~= nil and tostring(keybind) ~= "HL.Keybind(expired)" then
+      keybind:set_enabled(enabled)
+    end
+  end
+end
+
+switcher_tab_binds.down = hl.bind("TAB", function() send_key_once("Down") end)
+switcher_tab_binds.up = hl.bind("SHIFT + TAB", function() send_key_once("Up") end)
+set_switcher_tab_binds(false)
+
+hl.on("layer.opened", function(layer)
+  if layer.namespace == "omarchy-menu" and switcher_state == "starting" then
+    switcher_state = "open"
+    set_switcher_tab_binds(true)
+  end
+end)
+
+hl.on("layer.closed", function(layer)
+  if layer.namespace == "omarchy-menu" then
+    switcher_state = "closed"
+    set_switcher_tab_binds(false)
+  end
+end)
+
+o.rebind("SUPER + TAB", "Window switcher", function()
+  if switcher_state == "open" then
+    send_key_once("Down")
+  elseif switcher_state == "closed" then
+    switcher_state = "starting"
+    hl.dispatch(hl.dsp.exec_cmd(window_switcher))
+    -- メニューが開かなかったときに、表示待ちのまま残らないようにする
+    hl.timer(function()
+      if switcher_state == "starting" then switcher_state = "closed" end
+    end, { timeout = 3000, type = "oneshot" })
+  end
+end)
+
+o.rebind("SUPER + SHIFT + TAB", "Previous workspace (window switcher: up)", function()
+  if switcher_state == "open" then
+    send_key_once("Up")
+  else
+    hl.dispatch(hl.dsp.focus({ workspace = "m-1" }))
+  end
+end)

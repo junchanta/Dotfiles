@@ -1,0 +1,42 @@
+#!/bin/bash
+# 開いているウィンドウを Omarchy のフローティングメニューで一覧表示し、選んだものへフォーカスする。
+# 並びは最近使った順。いまアクティブなウィンドウは末尾に回す。
+
+set -euo pipefail
+
+declare -A address_by_key=()
+options=()
+active_row=""
+
+while IFS=$'\t' read -r history workspace class title address; do
+  [[ -z $address ]] && continue
+  [[ $workspace == -* ]] && workspace_label="special" || workspace_label="WS $workspace"
+  label="${title:-$class}"
+  subtext="$workspace_label · $class"
+  key="$label"$'\t'"$subtext"
+  # 同じタイトルとサブテキストが重なったら番号を振って区別する
+  n=2
+  while [[ -n ${address_by_key[$key]:-} ]]; do
+    subtext="$workspace_label · $class #$n"
+    key="$label"$'\t'"$subtext"
+    n=$((n + 1))
+  done
+  address_by_key[$key]="$address"
+  row="󰖯"$'\t'"$label"$'\t'"$subtext"
+  if [[ $history == 0 ]]; then
+    active_row="$row"
+  else
+    options+=("$row")
+  fi
+done < <(hyprctl clients -j | jq -r 'sort_by(.focusHistoryID)[] | select(.mapped and (.title != "" or .class != "")) | [.focusHistoryID, .workspace.id, .class, .title, .address] | @tsv')
+
+[[ -n $active_row ]] && options+=("$active_row")
+(( ${#options[@]} == 0 )) && exit 0
+
+choice=$(omarchy-menu-select "Windows" "${options[@]}" -- --width 700) || exit 0
+[[ -z $choice ]] && exit 0
+address="${address_by_key[$choice]:-}"
+[[ -z $address ]] && exit 0
+
+hyprctl dispatch "hl.dsp.focus({ window = \"address:$address\" })" >/dev/null 2>&1 ||
+  hyprctl dispatch focuswindow "address:$address" >/dev/null

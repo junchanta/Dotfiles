@@ -19,6 +19,8 @@
   # 画面(monitors.lua)のようにマシンで違うものは、管理しない
   xdg.configFile."hypr/bindings.lua".source = config.lib.dotfiles.link "hypr/bindings.lua";
   xdg.configFile."hypr/input.lua".source = config.lib.dotfiles.link "hypr/input.lua";
+  # SUPER+TAB のウィンドウスイッチャー。bindings.lua から呼ぶので、一緒に配る
+  xdg.configFile."hypr/scripts/window-switcher".source = config.lib.dotfiles.link "hypr/scripts/window-switcher";
 
   # tmux は ~/.tmux.conf の後に ~/.config/tmux/tmux.conf も読む。
   # Omarchy が置いた設定が残っていると、共通の設定(prefix など)を上書きするので、このファイルで置き換える
